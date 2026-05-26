@@ -180,7 +180,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
         /* REELS FEED STYLES */
         .reels-feed {
             flex: 1;
-            height: 100%;
+            height: calc(100vh - 120px);
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scroll-behavior: smooth;
@@ -202,7 +202,6 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
         .video-reel {
             width: 100%;
             height: 100%;
-            min-height: 100vh;
             scroll-snap-align: start;
             display: flex;
             align-items: center;
@@ -659,7 +658,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                                 <input type="number" class="filter-input" id="salaryMin" placeholder="Min ($K)" min="0" max="500">
                                 <input type="number" class="filter-input" id="salaryMax" placeholder="Max ($K)" min="0" max="500" style="margin-top: 0.5rem;">
                             </div>
-                            <button class="filter-btn">Apply Filters</button>
+                            <button class="filter-btn" id="applyFiltersBtn" onclick="applyFilters()">Apply Filters</button>
                         </div>
 
                         <!-- REELS FEED (MODULE 6) -->
@@ -733,7 +732,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                 role: 'Full Stack Developer',
                 location: 'San Francisco, CA',
                 avatar: '👩‍💻',
-                video: 'https://commondatastorage.googleapis.com/gtv-videos-library/sample/big_buck_bunny.mp4',
+                video: 'https://www.w3schools.com/html/mov_bbb.mp4',
                 saved: false
             },
             {
@@ -742,7 +741,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                 role: 'UI/UX Designer',
                 location: 'New York, NY',
                 avatar: '👨‍🎨',
-                video: 'https://commondatastorage.googleapis.com/gtv-videos-library/sample/elephant\'s_dream.mp4',
+                video: 'https://www.w3schools.com/html/movie.mp4',
                 saved: false
             },
             {
@@ -751,7 +750,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                 role: 'Product Manager',
                 location: 'Austin, TX',
                 avatar: '👩‍💼',
-                video: 'https://commondatastorage.googleapis.com/gtv-videos-library/sample/forrest_gump.mp4',
+                video: 'https://www.w3schools.com/html/mov_bbb.mp4',
                 saved: false
             },
             {
@@ -760,7 +759,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                 role: 'DevOps Engineer',
                 location: 'Seattle, WA',
                 avatar: '👨‍💻',
-                video: 'https://commondatastorage.googleapis.com/gtv-videos-library/sample/sintel.mp4',
+                video: 'https://www.w3schools.com/html/movie.mp4',
                 saved: false
             }
         ];
@@ -816,7 +815,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                 reel.className = 'video-reel';
                 reel.innerHTML = `
                     <div class="video-container">
-                        <video id="video-${candidate.id}" playsinline muted>
+                        <video id="video-${candidate.id}" loop muted playsinline preload="metadata" style="object-fit: cover;">
                             <source src="${candidate.video}" type="video/mp4">
                         </video>
                         <div class="video-overlay">
@@ -828,7 +827,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                                 </div>
                             </div>
                             <div class="video-actions">
-                                <button class="action-btn" onclick="toggleSave(${candidate.id})" title="Save">❤️</button>
+                                <button class="action-btn save-btn" data-id="${candidate.id}" onclick="toggleSave(${candidate.id})" title="Save">❤️</button>
                                 <button class="action-btn" onclick="openChat(${candidate.id})" title="Message">💬</button>
                                 <button class="action-btn" title="View Resume">📄</button>
                                 <button class="action-btn" title="Reject">❌</button>
@@ -838,6 +837,9 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
                 `;
                 feed.appendChild(reel);
             });
+            
+            // Setup IntersectionObserver for auto-play/pause
+            setupAutoPlay();
         }
 
         // TOGGLE SAVE CANDIDATE
@@ -845,6 +847,21 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
             const candidate = candidateReels.find(c => c.id === id);
             if (candidate) {
                 candidate.saved = !candidate.saved;
+                
+                // Update button styling
+                const btn = document.querySelector(`[data-id="${id}"]`);
+                if (btn) {
+                    if (candidate.saved) {
+                        btn.textContent = '❤️';
+                        btn.style.color = '#ef4444';
+                        btn.title = 'Saved';
+                    } else {
+                        btn.textContent = '❤️';
+                        btn.style.color = 'white';
+                        btn.title = 'Save';
+                    }
+                }
+                
                 renderSaved();
             }
         }
@@ -932,6 +949,55 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
             messages.scrollTop = messages.scrollHeight;
         }
 
+        // SETUP AUTO-PLAY WITH INTERSECTION OBSERVER
+        function setupAutoPlay() {
+            const observerOptions = {
+                threshold: 0.8
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target.querySelector('video');
+                    if (!video) return;
+                    
+                    if (entry.isIntersecting) {
+                        video.play().catch(() => {});
+                    } else {
+                        video.pause();
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.video-reel').forEach(reel => {
+                observer.observe(reel);
+            });
+        }
+
+        // APPLY FILTERS WITH LOADING STATE
+        function applyFilters() {
+            const btn = document.getElementById('applyFiltersBtn');
+            const originalText = btn.textContent;
+            
+            // Show loading state
+            btn.textContent = '⏳ Loading...';
+            btn.disabled = true;
+            
+            // Simulate filter processing
+            setTimeout(() => {
+                // Shuffle candidateReels to simulate filtering
+                const shuffled = [...candidateReels].sort(() => Math.random() - 0.5);
+                candidateReels.length = 0;
+                candidateReels.push(...shuffled);
+                
+                // Re-render the feed
+                renderReels();
+                
+                // Reset button
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }, 800);
+        }
+
         // SWITCH SECTIONS
         function switchSection(section) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -940,32 +1006,10 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
             event.target.closest('.nav-item').classList.add('active');
         }
 
-        // INTERSECTION OBSERVER FOR AUTO-PLAY
-        const observerOptions = {
-            threshold: 0.8
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                const video = entry.target.querySelector('video');
-                if (!video) return;
-                
-                if (entry.isIntersecting) {
-                    video.play().catch(() => {});
-                } else {
-                    video.pause();
-                }
-            });
-        }, observerOptions);
-
         // INITIALIZE
         window.addEventListener('load', () => {
             renderReels();
             renderChats();
-            
-            document.querySelectorAll('.video-reel').forEach(reel => {
-                observer.observe(reel);
-            });
             
             document.getElementById('chatInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendMessage();

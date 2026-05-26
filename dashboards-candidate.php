@@ -447,8 +447,10 @@ $messages_count = get_user_meta($user_id, 'hyreme_messages_count', true) ?: 0;
 
         // Upload zone interactions
         document.querySelectorAll('.upload-zone').forEach(zone => {
+            const fileInput = zone.querySelector('input[type="file"]');
+            
             zone.addEventListener('click', function() {
-                this.querySelector('input[type="file"]').click();
+                fileInput.click();
             });
 
             zone.addEventListener('dragover', function(e) {
@@ -465,12 +467,62 @@ $messages_count = get_user_meta($user_id, 'hyreme_messages_count', true) ?: 0;
             zone.addEventListener('drop', function(e) {
                 e.preventDefault();
                 const file = e.dataTransfer.files[0];
-                if (file) {
-                    console.log('File selected:', file.name);
-                    // TODO: Handle file upload
+                if (file && file.type.startsWith('video/')) {
+                    handleVideoUpload(file, zone);
+                }
+            });
+
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('video/')) {
+                    handleVideoUpload(file, zone);
                 }
             });
         });
+
+        function handleVideoUpload(file, zone) {
+            const videoUrl = URL.createObjectURL(file);
+            
+            // Hide the drag-and-drop text
+            zone.querySelectorAll('p').forEach(p => p.style.display = 'none');
+            
+            // Create video preview
+            const videoPreview = document.createElement('video');
+            videoPreview.src = videoUrl;
+            videoPreview.style.cssText = 'width: 100%; height: 300px; object-fit: contain; border-radius: 0.5rem; margin-bottom: 1rem;';
+            videoPreview.controls = true;
+            
+            // Clear zone and add video
+            zone.innerHTML = '';
+            zone.appendChild(videoPreview);
+            
+            // Show progress bar
+            const progressContainer = document.createElement('div');
+            progressContainer.style.cssText = 'margin-bottom: 1rem;';
+            progressContainer.innerHTML = `
+                <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 0.5rem; overflow: hidden; height: 8px;">
+                    <div id="uploadBar" style="background: linear-gradient(90deg, #0ea5e9, #06b6d4); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Uploading...</div>
+            `;
+            zone.appendChild(progressContainer);
+            
+            // Simulate progress
+            const progressBar = zone.querySelector('#uploadBar');
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress > 100) progress = 100;
+                progressBar.style.width = progress + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        progressContainer.innerHTML = '<div style="text-align: center; color: #10b981; font-weight: 600; font-size: 1rem;">✅ Video Attached Successfully</div>';
+                    }, 200);
+                }
+            }, 200);
+        }
     </script>
 </body>
 </html>
