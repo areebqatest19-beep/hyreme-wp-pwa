@@ -12,24 +12,22 @@ function hyreme_auth_system() {
     
     // --- ROUTE TO ACCOUNT/DASHBOARD ---
     if ( is_page('account') ) {
-        $current_user = wp_get_current_user();
-        
-        // Not logged in - redirect to login
-        if ( ! $current_user->ID ) {
-            wp_safe_redirect( home_url('/login/') );
-            exit;
-        }
-        
-        // Load appropriate dashboard based on user role
-        if ( in_array('candidate', (array) $current_user->roles) ) {
-            include plugin_dir_path(__FILE__) . 'dashboards-candidate.php';
-        } elseif ( in_array('recruiter', (array) $current_user->roles) ) {
-            include plugin_dir_path(__FILE__) . 'dashboards-recruiter.php';
-        } else {
-            // Unknown role - redirect to login
-            wp_safe_redirect( home_url('/login/') );
-            exit;
-        }
+    $current_user = wp_get_current_user();
+    
+    if ( ! $current_user->ID ) {
+        wp_safe_redirect( home_url('/login/') );
+        exit;
+    }
+    
+    // Load dashboard, fallback to candidate if role is missing/subscriber
+    if ( in_array('recruiter', (array) $current_user->roles) ) {
+        include plugin_dir_path(__FILE__) . 'dashboards-recruiter.php';
+        exit;
+    } else {
+        // Catch-all for candidates, subscribers, or UM roles (Stops the infinite redirect loop)
+        include plugin_dir_path(__FILE__) . 'dashboards-candidate.php';
+        exit;
+    }
     }
     
     if ( is_page(array(10, 11, 'login', 'register')) ) {
@@ -357,5 +355,16 @@ function hyreme_auth_system() {
         </html>
         <?php
         exit;
+    }
+}
+
+// Register custom roles formally in WordPress database
+add_action('init', 'hyreme_register_custom_roles');
+function hyreme_register_custom_roles() {
+    if ( ! get_role('candidate') ) {
+        add_role('candidate', 'Candidate', array('read' => true));
+    }
+    if ( ! get_role('recruiter') ) {
+        add_role('recruiter', 'Recruiter', array('read' => true));
     }
 }
