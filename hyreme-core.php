@@ -368,3 +368,92 @@ function hyreme_register_custom_roles() {
         add_role('recruiter', 'Recruiter', array('read' => true));
     }
 }
+
+// ============================================================
+// AJAX HANDLERS FOR PHASE 4 - REAL-TIME INTERACTIONS
+// ============================================================
+
+// Save/Unsave Candidate (Recruiter saves candidate to shortlist)
+add_action('wp_ajax_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
+add_action('wp_ajax_nopriv_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
+
+function hyreme_ajax_save_candidate() {
+    check_ajax_referer('hyreme_nonce', 'nonce', true);
+    
+    $recruiter_id = get_current_user_id();
+    $candidate_id = intval($_POST['candidate_id']);
+    
+    if (!$recruiter_id || !$candidate_id) {
+        wp_send_json_error('Invalid request');
+    }
+    
+    // Get current saved list
+    $saved_profiles = get_user_meta($recruiter_id, 'hyreme_saved_profiles', true);
+    if (!is_array($saved_profiles)) {
+        $saved_profiles = array();
+    }
+    
+    // Toggle save status
+    $key = array_search($candidate_id, $saved_profiles);
+    if ($key !== false) {
+        unset($saved_profiles[$key]);
+        $is_saved = false;
+    } else {
+        $saved_profiles[] = $candidate_id;
+        $is_saved = true;
+    }
+    
+    // Re-index array
+    $saved_profiles = array_values($saved_profiles);
+    
+    // Save to database
+    update_user_meta($recruiter_id, 'hyreme_saved_profiles', $saved_profiles);
+    
+    wp_send_json_success(array(
+        'is_saved' => $is_saved,
+        'message' => $is_saved ? 'Candidate saved' : 'Candidate removed'
+    ));
+}
+
+// Send Message (Recruiter sends message to candidate)
+add_action('wp_ajax_hyreme_send_message', 'hyreme_ajax_send_message');
+add_action('wp_ajax_nopriv_hyreme_send_message', 'hyreme_ajax_send_message');
+
+function hyreme_ajax_send_message() {
+    check_ajax_referer('hyreme_nonce', 'nonce', true);
+    
+    $sender_id = get_current_user_id();
+    $recipient_id = intval($_POST['recipient_id']);
+    $message_text = sanitize_textarea_field($_POST['message']);
+    
+    if (!$sender_id || !$recipient_id || empty($message_text)) {
+        wp_send_json_error('Invalid request');
+    }
+    
+    // Create a conversation ID (sorted user IDs)
+    $user_ids = array($sender_id, $recipient_id);
+    sort($user_ids);
+    $conversation_id = implode('_', $user_ids);
+    
+    // Get conversation history
+    $conversation = get_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, true);
+    if (!is_array($conversation)) {
+        $conversation = array();
+    }
+    
+    // Add message
+    $conversation[] = array(
+        'from' => $sender_id,
+        'text' => $message_text,
+        'time' => current_time('mysql')
+    );
+    
+    // Save conversation for both users
+    update_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, $conversation);
+    update_user_meta($recipient_id, 'hyreme_conversation_' . $conversation_id, $conversation);
+    
+    wp_send_json_success(array(
+        'message' => 'Message sent',
+        'timestamp' => current_time('mysql')
+    ));
+}

@@ -49,7 +49,46 @@ if ( isset($_POST['hyreme_profile_submit']) && $_SERVER['REQUEST_METHOD'] == 'PO
     }
 }
 
-// Fetch current profile data
+// --- HANDLE VIDEO UPLOADS ---
+if ( isset($_POST['hyreme_video_upload']) && $_SERVER['REQUEST_METHOD'] == 'POST' ) {
+    // Verify nonce
+    if ( ! isset($_POST['hyreme_video_nonce']) || ! wp_verify_nonce($_POST['hyreme_video_nonce'], 'hyreme_video_action') ) {
+        $error_msg = 'Security check failed. Please try again.';
+    } elseif ( empty($_FILES['video_file']) ) {
+        $error_msg = 'No file selected. Please choose a video file.';
+    } else {
+        require_once( ABSPATH . 'wp-admin/includes/file.php' );
+        
+        $uploaded_file = $_FILES['video_file'];
+        $max_file_size = 5242880; // 5MB in bytes
+        
+        // Check file size
+        if ( $uploaded_file['size'] > $max_file_size ) {
+            $error_msg = 'File is too large. Maximum size is 5MB.';
+        } else {
+            // Handle the upload
+            $upload = wp_handle_upload( $uploaded_file, array( 'test_form' => false ) );
+            
+            if ( isset($upload['error']) ) {
+                $error_msg = 'Upload failed: ' . $upload['error'];
+            } else {
+                // Determine which video type this is
+                $video_type = isset($_POST['video_type']) ? sanitize_text_field($_POST['video_type']) : 'intro';
+                $meta_key = 'hyreme_' . $video_type . '_video';
+                
+                // Save the URL to user meta
+                update_user_meta($user_id, $meta_key, $upload['url']);
+                
+                $update_msg = '✅ Video uploaded successfully!';
+            }
+        }
+    }
+}
+
+// Fetch current video URLs
+$intro_video_url = get_user_meta($user_id, 'hyreme_intro_video', true);
+$portfolio_video_url = get_user_meta($user_id, 'hyreme_portfolio_video', true);
+$skill_video_url = get_user_meta($user_id, 'hyreme_skill_video', true);
 $user_id = $current_user->ID;
 $first_name = $current_user->first_name;
 $last_name = $current_user->last_name;
@@ -357,37 +396,78 @@ $messages_count = get_user_meta($user_id, 'hyreme_messages_count', true) ?: 0;
                     <h2>🎬 Video Resume Upload</h2>
                     <p style="color: #94a3b8; margin-bottom: 2rem; font-size: 0.95rem;">Upload your resume videos to showcase your talents. Each video should be between 30 seconds and 2 minutes.</p>
 
+                    <?php if (!empty($update_msg) && strpos($update_msg, 'Video') !== false): ?>
+                    <div class="alert alert-success"><?php echo esc_html($update_msg); ?></div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($error_msg)): ?>
+                    <div class="alert alert-error"><?php echo esc_html($error_msg); ?></div>
+                    <?php endif; ?>
+
                     <!-- Intro Video -->
                     <div>
                         <h3 style="color: #22d3ee; margin-bottom: 1rem; font-size: 1.1rem;">Intro Video</h3>
-                        <div class="upload-zone">
-                            <p>📹 Drag and drop your intro video here</p>
-                            <p style="font-size: 0.9rem; color: #64748b;">or click to select</p>
-                            <p class="note">Max 2 minutes • MP4, WebM, or MOV • Up to 100MB</p>
-                            <input type="file" accept="video/*" style="display: none;">
-                        </div>
+                        <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <?php wp_nonce_field('hyreme_video_action', 'hyreme_video_nonce'); ?>
+                            <input type="hidden" name="video_type" value="intro">
+                            <div class="upload-zone" data-video-type="intro">
+                                <p>📹 Drag and drop your intro video here</p>
+                                <p style="font-size: 0.9rem; color: #64748b;">or click to select</p>
+                                <p class="note">Max 5MB • MP4, WebM, or MOV</p>
+                                <input type="file" name="video_file" accept="video/*" style="display: none;" required>
+                            </div>
+                            <button type="submit" name="hyreme_video_upload" class="btn-submit" style="align-self: flex-start;">⬆️ Upload Intro Video</button>
+                            <?php if ($intro_video_url): ?>
+                            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: 0.5rem;">
+                                <p style="color: #10b981; margin: 0; font-weight: 600;">✅ Video uploaded</p>
+                                <a href="<?php echo esc_url($intro_video_url); ?>" target="_blank" style="color: #22d3ee; text-decoration: underline; font-size: 0.9rem;">View uploaded file</a>
+                            </div>
+                            <?php endif; ?>
+                        </form>
                     </div>
 
                     <!-- Portfolio Video -->
                     <div>
                         <h3 style="color: #22d3ee; margin-bottom: 1rem; font-size: 1.1rem;">Portfolio/Project Showcase Video</h3>
-                        <div class="upload-zone">
-                            <p>📹 Drag and drop your portfolio video here</p>
-                            <p style="font-size: 0.9rem; color: #64748b;">or click to select</p>
-                            <p class="note">Max 2 minutes • MP4, WebM, or MOV • Up to 100MB</p>
-                            <input type="file" accept="video/*" style="display: none;">
-                        </div>
+                        <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <?php wp_nonce_field('hyreme_video_action', 'hyreme_video_nonce'); ?>
+                            <input type="hidden" name="video_type" value="portfolio">
+                            <div class="upload-zone" data-video-type="portfolio">
+                                <p>📹 Drag and drop your portfolio video here</p>
+                                <p style="font-size: 0.9rem; color: #64748b;">or click to select</p>
+                                <p class="note">Max 5MB • MP4, WebM, or MOV</p>
+                                <input type="file" name="video_file" accept="video/*" style="display: none;" required>
+                            </div>
+                            <button type="submit" name="hyreme_video_upload" class="btn-submit" style="align-self: flex-start;">⬆️ Upload Portfolio Video</button>
+                            <?php if ($portfolio_video_url): ?>
+                            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: 0.5rem;">
+                                <p style="color: #10b981; margin: 0; font-weight: 600;">✅ Video uploaded</p>
+                                <a href="<?php echo esc_url($portfolio_video_url); ?>" target="_blank" style="color: #22d3ee; text-decoration: underline; font-size: 0.9rem;">View uploaded file</a>
+                            </div>
+                            <?php endif; ?>
+                        </form>
                     </div>
 
                     <!-- Skill Showcase Video -->
                     <div>
                         <h3 style="color: #22d3ee; margin-bottom: 1rem; font-size: 1.1rem;">Skill Showcase Video</h3>
-                        <div class="upload-zone">
-                            <p>📹 Drag and drop your skill demo video here</p>
-                            <p style="font-size: 0.9rem; color: #64748b;">or click to select</p>
-                            <p class="note">Max 2 minutes • MP4, WebM, or MOV • Up to 100MB</p>
-                            <input type="file" accept="video/*" style="display: none;">
-                        </div>
+                        <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <?php wp_nonce_field('hyreme_video_action', 'hyreme_video_nonce'); ?>
+                            <input type="hidden" name="video_type" value="skill">
+                            <div class="upload-zone" data-video-type="skill">
+                                <p>📹 Drag and drop your skill demo video here</p>
+                                <p style="font-size: 0.9rem; color: #64748b;">or click to select</p>
+                                <p class="note">Max 5MB • MP4, WebM, or MOV</p>
+                                <input type="file" name="video_file" accept="video/*" style="display: none;" required>
+                            </div>
+                            <button type="submit" name="hyreme_video_upload" class="btn-submit" style="align-self: flex-start;">⬆️ Upload Skill Video</button>
+                            <?php if ($skill_video_url): ?>
+                            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: 0.5rem;">
+                                <p style="color: #10b981; margin: 0; font-weight: 600;">✅ Video uploaded</p>
+                                <a href="<?php echo esc_url($skill_video_url); ?>" target="_blank" style="color: #22d3ee; text-decoration: underline; font-size: 0.9rem;">View uploaded file</a>
+                            </div>
+                            <?php endif; ?>
+                        </form>
                     </div>
 
                     <p style="color: #64748b; font-size: 0.9rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">💡 <strong>Pro Tip:</strong> Keep your videos engaging, authentic, and professional. Recruiters love seeing personality and passion!</p>
@@ -481,18 +561,25 @@ $messages_count = get_user_meta($user_id, 'hyreme_messages_count', true) ?: 0;
         });
 
         function handleVideoUpload(file, zone) {
-            const videoUrl = URL.createObjectURL(file);
+            // Find the parent form
+            const form = zone.closest('form');
+            if (!form) return;
             
-            // Hide the drag-and-drop text
+            // Get the file input and set the file
+            const fileInput = zone.querySelector('input[type="file"]');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // Create preview
+            const videoUrl = URL.createObjectURL(file);
             zone.querySelectorAll('p').forEach(p => p.style.display = 'none');
             
-            // Create video preview
             const videoPreview = document.createElement('video');
             videoPreview.src = videoUrl;
             videoPreview.style.cssText = 'width: 100%; height: 300px; object-fit: contain; border-radius: 0.5rem; margin-bottom: 1rem;';
             videoPreview.controls = true;
             
-            // Clear zone and add video
             zone.innerHTML = '';
             zone.appendChild(videoPreview);
             
@@ -507,7 +594,7 @@ $messages_count = get_user_meta($user_id, 'hyreme_messages_count', true) ?: 0;
             `;
             zone.appendChild(progressContainer);
             
-            // Simulate progress
+            // Simulate progress then submit
             const progressBar = zone.querySelector('#uploadBar');
             let progress = 0;
             const interval = setInterval(() => {
@@ -517,9 +604,10 @@ $messages_count = get_user_meta($user_id, 'hyreme_messages_count', true) ?: 0;
                 
                 if (progress >= 100) {
                     clearInterval(interval);
+                    // Auto-submit the form
                     setTimeout(() => {
-                        progressContainer.innerHTML = '<div style="text-align: center; color: #10b981; font-weight: 600; font-size: 1rem;">✅ Video Attached Successfully</div>';
-                    }, 200);
+                        form.submit();
+                    }, 300);
                 }
             }, 200);
         }

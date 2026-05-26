@@ -13,6 +13,37 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
     exit;
 }
 
+// --- FETCH REAL CANDIDATE DATA FROM DATABASE ---
+$candidate_data = array();
+$args = array(
+    'role' => 'candidate',
+    'orderby' => 'user_registered',
+    'order' => 'DESC',
+    'number' => -1  // Get all candidates
+);
+
+$candidates = new WP_User_Query($args);
+
+if (!empty($candidates->get_results())) {
+    foreach ($candidates->get_results() as $candidate) {
+        $intro_video = get_user_meta($candidate->ID, 'hyreme_intro_video', true);
+        
+        // Only include candidates who have uploaded at least one video
+        if (!empty($intro_video)) {
+            $candidate_data[] = array(
+                'id' => $candidate->ID,
+                'name' => $candidate->first_name . ' ' . $candidate->last_name ?: $candidate->user_login,
+                'role' => get_user_meta($candidate->ID, 'hyreme_title', true) ?: 'Candidate',
+                'location' => get_user_meta($candidate->ID, 'hyreme_location', true) ?: 'Unknown',
+                'avatar' => '👤',  // Can be extended with profile photo
+                'video' => esc_url($intro_video),
+                'skills' => get_user_meta($candidate->ID, 'hyreme_skills', true) ?: '',
+                'saved' => false
+            );
+        }
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -221,7 +252,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
         .video-container video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
         .video-overlay {
             position: absolute;
@@ -724,45 +755,12 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
     </div>
 
     <script>
-        // MOCK CANDIDATE DATA FOR REELS FEED
-        const candidateReels = [
-            {
-                id: 1,
-                name: 'Sarah Chen',
-                role: 'Full Stack Developer',
-                location: 'San Francisco, CA',
-                avatar: '👩‍💻',
-                video: 'https://www.w3schools.com/html/mov_bbb.mp4',
-                saved: false
-            },
-            {
-                id: 2,
-                name: 'Marcus Johnson',
-                role: 'UI/UX Designer',
-                location: 'New York, NY',
-                avatar: '👨‍🎨',
-                video: 'https://www.w3schools.com/html/movie.mp4',
-                saved: false
-            },
-            {
-                id: 3,
-                name: 'Emma Rodriguez',
-                role: 'Product Manager',
-                location: 'Austin, TX',
-                avatar: '👩‍💼',
-                video: 'https://www.w3schools.com/html/mov_bbb.mp4',
-                saved: false
-            },
-            {
-                id: 4,
-                name: 'David Lee',
-                role: 'DevOps Engineer',
-                location: 'Seattle, WA',
-                avatar: '👨‍💻',
-                video: 'https://www.w3schools.com/html/movie.mp4',
-                saved: false
-            }
-        ];
+        // Security nonce for AJAX
+        const ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+        const hyreme_nonce = '<?php echo wp_create_nonce('hyreme_nonce'); ?>';
+        
+        // REAL CANDIDATE DATA FROM DATABASE
+        const candidateReels = <?php echo json_encode($candidate_data); ?>;
 
         // MOCK CHAT DATA
         const chats = [
@@ -842,28 +840,46 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
             setupAutoPlay();
         }
 
-        // TOGGLE SAVE CANDIDATE
+        // TOGGLE SAVE CANDIDATE (AJAX)
         function toggleSave(id) {
             const candidate = candidateReels.find(c => c.id === id);
-            if (candidate) {
-                candidate.saved = !candidate.saved;
-                
-                // Update button styling
-                const btn = document.querySelector(`[data-id="${id}"]`);
-                if (btn) {
-                    if (candidate.saved) {
-                        btn.textContent = '❤️';
-                        btn.style.color = '#ef4444';
-                        btn.title = 'Saved';
-                    } else {
-                        btn.textContent = '❤️';
-                        btn.style.color = 'white';
-                        btn.title = 'Save';
+            if (!candidate) return;
+            
+            // Send AJAX request to save/unsave
+            fetch(ajaxurl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'hyreme_save_candidate',
+                    nonce: hyreme_nonce,
+                    candidate_id: id
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    candidate.saved = data.data.is_saved;
+                    
+                    // Update button styling
+                    const btn = document.querySelector(`[data-id="${id}"]`);
+                    if (btn) {
+                        if (candidate.saved) {
+                            btn.style.color = '#ef4444';
+                            btn.title = 'Saved';
+                        } else {
+                            btn.style.color = 'white';
+                            btn.title = 'Save';
+                        }
                     }
+                    
+                    renderSaved();
+                } else {
+                    console.error('Error saving candidate:', data.data);
                 }
-                
-                renderSaved();
-            }
+            })
+            .catch(error => console.error('AJAX error:', error));
         }
 
         // RENDER SAVED CANDIDATES
@@ -973,7 +989,7 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
             });
         }
 
-        // APPLY FILTERS WITH LOADING STATE
+        // APPLY FILTERS WITH REAL DATA FILTERING
         function applyFilters() {
             const btn = document.getElementById('applyFiltersBtn');
             const originalText = btn.textContent;
@@ -982,12 +998,33 @@ if ( ! $current_user->ID || ! in_array( 'recruiter', (array) $current_user->role
             btn.textContent = '⏳ Loading...';
             btn.disabled = true;
             
-            // Simulate filter processing
+            // Get filter values
+            const skillFilter = document.getElementById('skillFilter').value.toLowerCase();
+            const experienceFilter = document.getElementById('experienceFilter').value;
+            const locationFilter = document.getElementById('locationFilter').value.toLowerCase();
+            
+            // Simulate processing
             setTimeout(() => {
-                // Shuffle candidateReels to simulate filtering
-                const shuffled = [...candidateReels].sort(() => Math.random() - 0.5);
+                // Create a copy of original candidates
+                let filteredCandidates = [...candidateReels];
+                
+                // Apply skill filter
+                if (skillFilter) {
+                    filteredCandidates = filteredCandidates.filter(c => 
+                        c.skills && c.skills.toLowerCase().includes(skillFilter)
+                    );
+                }
+                
+                // Apply location filter
+                if (locationFilter) {
+                    filteredCandidates = filteredCandidates.filter(c => 
+                        c.location && c.location.toLowerCase().includes(locationFilter)
+                    );
+                }
+                
+                // Update the candidateReels with filtered results
                 candidateReels.length = 0;
-                candidateReels.push(...shuffled);
+                candidateReels.push(...filteredCandidates);
                 
                 // Re-render the feed
                 renderReels();
