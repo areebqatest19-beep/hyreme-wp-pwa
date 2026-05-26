@@ -10,6 +10,28 @@ add_action('template_redirect', 'hyreme_auth_system');
 
 function hyreme_auth_system() {
     
+    // --- ROUTE TO ACCOUNT/DASHBOARD ---
+    if ( is_page('account') ) {
+        $current_user = wp_get_current_user();
+        
+        // Not logged in - redirect to login
+        if ( ! $current_user->ID ) {
+            wp_safe_redirect( home_url('/login/') );
+            exit;
+        }
+        
+        // Load appropriate dashboard based on user role
+        if ( in_array('candidate', (array) $current_user->roles) ) {
+            include plugin_dir_path(__FILE__) . 'dashboards-candidate.php';
+        } elseif ( in_array('recruiter', (array) $current_user->roles) ) {
+            include plugin_dir_path(__FILE__) . 'dashboards-recruiter.php';
+        } else {
+            // Unknown role - redirect to login
+            wp_safe_redirect( home_url('/login/') );
+            exit;
+        }
+    }
+    
     if ( is_page(array(10, 11, 'login', 'register')) ) {
         
         $error_msg = '';
