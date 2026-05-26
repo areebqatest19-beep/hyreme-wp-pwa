@@ -367,12 +367,11 @@ function hyreme_register_custom_roles() {
 }
 
 // ============================================================
-// AJAX HANDLERS FOR PHASE 4 - REAL-TIME INTERACTIONS
+// AJAX HANDLERS
 // ============================================================
 
+// SAVE CANDIDATE
 add_action('wp_ajax_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
-add_action('wp_ajax_nopriv_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
-
 function hyreme_ajax_save_candidate() {
     check_ajax_referer('hyreme_nonce', 'nonce', true);
     
@@ -392,9 +391,13 @@ function hyreme_ajax_save_candidate() {
     if ($key !== false) {
         unset($saved_profiles[$key]);
         $is_saved = false;
+        // Update counter
+        update_user_meta($candidate_id, 'hyreme_saved_count', max(0, (int)get_user_meta($candidate_id, 'hyreme_saved_count', true) - 1));
     } else {
         $saved_profiles[] = $candidate_id;
         $is_saved = true;
+        // Update counter
+        update_user_meta($candidate_id, 'hyreme_saved_count', (int)get_user_meta($candidate_id, 'hyreme_saved_count', true) + 1);
     }
     
     $saved_profiles = array_values($saved_profiles);
@@ -406,9 +409,8 @@ function hyreme_ajax_save_candidate() {
     ));
 }
 
+// SEND MESSAGE
 add_action('wp_ajax_hyreme_send_message', 'hyreme_ajax_send_message');
-add_action('wp_ajax_nopriv_hyreme_send_message', 'hyreme_ajax_send_message');
-
 function hyreme_ajax_send_message() {
     check_ajax_referer('hyreme_nonce', 'nonce', true);
     
@@ -432,35 +434,41 @@ function hyreme_ajax_send_message() {
     $conversation[] = array(
         'from' => $sender_id,
         'text' => $message_text,
-        'time' => current_time('mysql')
+        'time' => date('H:i')
     );
     
     update_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, $conversation);
     update_user_meta($recipient_id, 'hyreme_conversation_' . $conversation_id, $conversation);
+    update_user_meta($recipient_id, 'hyreme_messages_count', (int)get_user_meta($recipient_id, 'hyreme_messages_count', true) + 1);
     
     wp_send_json_success(array(
         'message' => 'Message sent',
-        'timestamp' => current_time('mysql')
+        'timestamp' => date('H:i')
     ));
 }
 
-// ============================================================
-// AJAX VIDEO UPLOAD HANDLER
-// ============================================================
+// GET MESSAGES
+add_action('wp_ajax_hyreme_get_messages', 'hyreme_ajax_get_messages');
+function hyreme_ajax_get_messages() {
+    check_ajax_referer('hyreme_nonce', 'nonce', true);
+    $user_id = get_current_user_id();
+    $other_id = intval($_POST['other_id']);
+    $ids = array($user_id, $other_id);
+    sort($ids);
+    $conversation_id = implode('_', $ids);
+    $conversation = get_user_meta($user_id, 'hyreme_conversation_' . $conversation_id, true);
+    wp_send_json_success(is_array($conversation) ? $conversation : array());
+}
 
+// UPLOAD VIDEO
 add_action('wp_ajax_hyreme_upload_video', 'hyreme_ajax_upload_video');
-
 function hyreme_ajax_upload_video() {
     check_ajax_referer('hyreme_video_action', 'nonce');
     
-    if (empty($_FILES['video_file'])) {
-        wp_send_json_error('No file received.');
-    }
+    if (empty($_FILES['video_file'])) wp_send_json_error('No file received.');
     
     $file = $_FILES['video_file'];
-    if ($file['size'] > 5242880) {
-        wp_send_json_error('File exceeds 5MB limit.');
-    }
+    if ($file['size'] > 5242880) wp_send_json_error('File exceeds 5MB limit.');
     
     require_once(ABSPATH . 'wp-admin/includes/file.php');
     $upload_overrides = array('test_form' => false);
@@ -468,28 +476,20 @@ function hyreme_ajax_upload_video() {
     
     if ($movefile && !isset($movefile['error'])) {
         $user_id = get_current_user_id();
-        $type = sanitize_text_field($_POST['video_type']); // 'intro', 'portfolio', or 'skill'
-        $meta_key = 'hyreme_' . $type . '_video';
-        update_user_meta($user_id, $meta_key, $movefile['url']);
+        $type = sanitize_text_field($_POST['video_type']);
+        update_user_meta($user_id, 'hyreme_' . $type . '_video', $movefile['url']);
         wp_send_json_success(array('url' => $movefile['url']));
     } else {
         wp_send_json_error($movefile['error']);
     }
 }
 
-// ============================================================
-// AJAX VIDEO DELETE HANDLER
-// ============================================================
-
+// DELETE VIDEO
 add_action('wp_ajax_hyreme_delete_video', 'hyreme_ajax_delete_video');
-
 function hyreme_ajax_delete_video() {
     check_ajax_referer('hyreme_video_action', 'nonce');
-    
     $user_id = get_current_user_id();
     $type = sanitize_text_field($_POST['video_type']);
-    
     delete_user_meta($user_id, 'hyreme_' . $type . '_video');
-    
     wp_send_json_success('Deleted');
 }
