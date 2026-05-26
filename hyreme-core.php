@@ -174,13 +174,11 @@ function hyreme_auth_system() {
                 .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid rgba(255,255,255,0.1); }
                 .divider:not(:empty)::before { margin-right: .5em; }
                 .divider:not(:empty)::after { margin-left: .5em; }
-                /* ADDED CSS FOR REGEX */
                 .regex-item { margin-top: 4px; font-size: 0.75rem; transition: color 0.3s; }
             </style>
         </head>
         <body>
             <div class="glassmorphism">
-                
                 <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; justify-content: center;">
                     <div id="tabLogin" class="top-tab inactive">Sign In</div>
                     <div id="tabRegister" class="top-tab active">Create Account</div>
@@ -279,7 +277,7 @@ function hyreme_auth_system() {
                 const pass = document.getElementById('passInput');
                 const googleRole = document.getElementById('google_role');
                 const formRole = document.getElementById('form_user_role');
-                const regexRules = document.getElementById('regexRules'); // ADDED
+                const regexRules = document.getElementById('regexRules');
 
                 function setAuthMode(newMode) {
                     mode.value = newMode;
@@ -292,7 +290,7 @@ function hyreme_auth_system() {
                         confInp.removeAttribute('required');
                         userInp.placeholder = 'Username or Email';
                         subBtn.innerText = 'Sign In with Email';
-                        regexRules.style.display = 'none'; // HIDE REGEX ON LOGIN
+                        regexRules.style.display = 'none'; 
                     } else {
                         document.getElementById('tabRegister').className = 'top-tab active';
                         document.getElementById('tabLogin').className = 'top-tab inactive';
@@ -330,7 +328,6 @@ function hyreme_auth_system() {
                     pass.type = pass.type === 'password' ? 'text' : 'password';
                 };
 
-                // --- ADDED LIVE REGEX LOGIC ---
                 pass.addEventListener('focus', () => { 
                     if(mode.value === 'register') regexRules.style.display = 'block'; 
                 });
@@ -373,7 +370,6 @@ function hyreme_register_custom_roles() {
 // AJAX HANDLERS FOR PHASE 4 - REAL-TIME INTERACTIONS
 // ============================================================
 
-// Save/Unsave Candidate (Recruiter saves candidate to shortlist)
 add_action('wp_ajax_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
 add_action('wp_ajax_nopriv_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
 
@@ -387,13 +383,11 @@ function hyreme_ajax_save_candidate() {
         wp_send_json_error('Invalid request');
     }
     
-    // Get current saved list
     $saved_profiles = get_user_meta($recruiter_id, 'hyreme_saved_profiles', true);
     if (!is_array($saved_profiles)) {
         $saved_profiles = array();
     }
     
-    // Toggle save status
     $key = array_search($candidate_id, $saved_profiles);
     if ($key !== false) {
         unset($saved_profiles[$key]);
@@ -403,10 +397,7 @@ function hyreme_ajax_save_candidate() {
         $is_saved = true;
     }
     
-    // Re-index array
     $saved_profiles = array_values($saved_profiles);
-    
-    // Save to database
     update_user_meta($recruiter_id, 'hyreme_saved_profiles', $saved_profiles);
     
     wp_send_json_success(array(
@@ -415,7 +406,6 @@ function hyreme_ajax_save_candidate() {
     ));
 }
 
-// Send Message (Recruiter sends message to candidate)
 add_action('wp_ajax_hyreme_send_message', 'hyreme_ajax_send_message');
 add_action('wp_ajax_nopriv_hyreme_send_message', 'hyreme_ajax_send_message');
 
@@ -430,25 +420,21 @@ function hyreme_ajax_send_message() {
         wp_send_json_error('Invalid request');
     }
     
-    // Create a conversation ID (sorted user IDs)
     $user_ids = array($sender_id, $recipient_id);
     sort($user_ids);
     $conversation_id = implode('_', $user_ids);
     
-    // Get conversation history
     $conversation = get_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, true);
     if (!is_array($conversation)) {
         $conversation = array();
     }
     
-    // Add message
     $conversation[] = array(
         'from' => $sender_id,
         'text' => $message_text,
         'time' => current_time('mysql')
     );
     
-    // Save conversation for both users
     update_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, $conversation);
     update_user_meta($recipient_id, 'hyreme_conversation_' . $conversation_id, $conversation);
     
@@ -459,7 +445,7 @@ function hyreme_ajax_send_message() {
 }
 
 // ============================================================
-// AJAX VIDEO UPLOAD HANDLER - SEAMLESS PIPELINE
+// AJAX VIDEO UPLOAD HANDLER
 // ============================================================
 
 add_action('wp_ajax_hyreme_upload_video', 'hyreme_ajax_upload_video');
@@ -489,4 +475,21 @@ function hyreme_ajax_upload_video() {
     } else {
         wp_send_json_error($movefile['error']);
     }
+}
+
+// ============================================================
+// AJAX VIDEO DELETE HANDLER
+// ============================================================
+
+add_action('wp_ajax_hyreme_delete_video', 'hyreme_ajax_delete_video');
+
+function hyreme_ajax_delete_video() {
+    check_ajax_referer('hyreme_video_action', 'nonce');
+    
+    $user_id = get_current_user_id();
+    $type = sanitize_text_field($_POST['video_type']);
+    
+    delete_user_meta($user_id, 'hyreme_' . $type . '_video');
+    
+    wp_send_json_success('Deleted');
 }
