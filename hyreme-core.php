@@ -457,3 +457,36 @@ function hyreme_ajax_send_message() {
         'timestamp' => current_time('mysql')
     ));
 }
+
+// ============================================================
+// AJAX VIDEO UPLOAD HANDLER - SEAMLESS PIPELINE
+// ============================================================
+
+add_action('wp_ajax_hyreme_upload_video', 'hyreme_ajax_upload_video');
+
+function hyreme_ajax_upload_video() {
+    check_ajax_referer('hyreme_video_action', 'nonce');
+    
+    if (empty($_FILES['video_file'])) {
+        wp_send_json_error('No file received.');
+    }
+    
+    $file = $_FILES['video_file'];
+    if ($file['size'] > 5242880) {
+        wp_send_json_error('File exceeds 5MB limit.');
+    }
+    
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    $upload_overrides = array('test_form' => false);
+    $movefile = wp_handle_upload($file, $upload_overrides);
+    
+    if ($movefile && !isset($movefile['error'])) {
+        $user_id = get_current_user_id();
+        $type = sanitize_text_field($_POST['video_type']); // 'intro', 'portfolio', or 'skill'
+        $meta_key = 'hyreme_' . $type . '_video';
+        update_user_meta($user_id, $meta_key, $movefile['url']);
+        wp_send_json_success(array('url' => $movefile['url']));
+    } else {
+        wp_send_json_error($movefile['error']);
+    }
+}
