@@ -6,18 +6,17 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-add_action('init', 'hyreme_auth_system');
+add_action('template_redirect', 'hyreme_auth_system', 1);
 
 function hyreme_auth_system() {
     
     // --- ROUTE TO ACCOUNT/DASHBOARD ---
-    $request_uri = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
-    if ( $request_uri === 'account' ) {
+    if ( is_page('account') ) {
         $current_user = wp_get_current_user();
         
         // Not logged in - redirect to login
         if ( ! $current_user->ID ) {
-            wp_redirect( home_url('/login/') );
+            wp_safe_redirect( home_url('/login/') );
             exit;
         }
         
@@ -28,12 +27,12 @@ function hyreme_auth_system() {
             include plugin_dir_path(__FILE__) . 'dashboards-recruiter.php';
         } else {
             // Unknown role - redirect to login
-            wp_redirect( home_url('/login/') );
+            wp_safe_redirect( home_url('/login/') );
             exit;
         }
     }
     
-    if ( in_array($request_uri, array('login', 'register')) ) {
+    if ( is_page(array(10, 11, 'login', 'register')) ) {
         
         $error_msg = '';
         $active_tab = 'register'; 
@@ -82,7 +81,7 @@ function hyreme_auth_system() {
                             wp_clear_auth_cookie();
                             wp_set_current_user( $user->ID );
                             wp_set_auth_cookie( $user->ID );
-                            wp_redirect( home_url('/account/') );
+                            wp_safe_redirect( home_url('/account/') );
                             exit;
                         }
                     }
@@ -122,7 +121,7 @@ function hyreme_auth_system() {
                             wp_clear_auth_cookie();
                             wp_set_current_user( $user_id );
                             wp_set_auth_cookie( $user_id );
-                            wp_redirect( home_url('/account/') );
+                            wp_safe_redirect( home_url('/account/') );
                             exit;
                         } else {
                             $error_msg = $user_id->get_error_message();
@@ -143,7 +142,7 @@ function hyreme_auth_system() {
                     wp_clear_auth_cookie();
                     wp_set_current_user( $user->ID );
                     wp_set_auth_cookie( $user->ID );
-                    wp_redirect( home_url('/account/') );
+                    wp_safe_redirect( home_url('/account/') );
                     exit;
                 }
             }
