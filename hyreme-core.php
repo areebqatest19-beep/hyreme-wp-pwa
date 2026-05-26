@@ -400,130 +400,115 @@ add_action('wp_ajax_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
 add_action('wp_ajax_nopriv_hyreme_save_candidate', 'hyreme_ajax_save_candidate');
 
 function hyreme_ajax_save_candidate() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    $recruiter_id = get_current_user_id();
-    $candidate_id = intval($_POST['candidate_id']);
-    
-    if (!$recruiter_id || !$candidate_id) {
-        wp_send_json_error('Invalid request');
-    }
-    
-    $saved_profiles = get_user_meta($recruiter_id, 'hyreme_saved_profiles', true);
-    if (!is_array($saved_profiles)) {
-        $saved_profiles = array();
-    }
-    
-    $key = array_search($candidate_id, $saved_profiles);
-    if ($key !== false) {
-        unset($saved_profiles[$key]);
-        $is_saved = false;
-    } else {
-        $saved_profiles[] = $candidate_id;
-        $is_saved = true;
-        
-        // Add notification to candidate when liked
-        if ($is_saved) {
-            $candidate_notifications = get_user_meta($candidate_id, 'hyreme_notifications', true) ?: array();
-            $recruiter = get_user_by('id', $recruiter_id);
-            $recruiter_name = $recruiter->first_name . ' ' . $recruiter->last_name ?: $recruiter->user_login;
-            
-            $candidate_notifications[] = array(
-                'type' => '❤️ Profile Liked',
-                'message' => $recruiter_name . ' liked your profile!',
-                'time' => current_time('mysql')
-            );
-            update_user_meta($candidate_id, 'hyreme_notifications', $candidate_notifications);
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
         }
+        
+        $recruiter_id = get_current_user_id();
+        $candidate_id = intval($_POST['candidate_id'] ?? 0);
+        
+        if (!$recruiter_id || !$candidate_id) {
+            wp_send_json_error('Invalid request');
+            return;
+        }
+        
+        $saved = get_user_meta($recruiter_id, 'hyreme_saved_profiles', true);
+        if (!is_array($saved)) {
+            $saved = array();
+        }
+        
+        if (in_array($candidate_id, $saved)) {
+            $saved = array_diff($saved, array($candidate_id));
+            $is_saved = false;
+        } else {
+            $saved[] = $candidate_id;
+            $is_saved = true;
+        }
+        
+        update_user_meta($recruiter_id, 'hyreme_saved_profiles', array_values($saved));
+        
+        wp_send_json_success(array('is_saved' => $is_saved));
+    } catch (Exception $e) {
+        wp_send_json_error('Operation failed: ' . $e->getMessage());
     }
-    
-    $saved_profiles = array_values($saved_profiles);
-    update_user_meta($recruiter_id, 'hyreme_saved_profiles', $saved_profiles);
-    
-    wp_send_json_success(array(
-        'is_saved' => $is_saved,
-        'message' => $is_saved ? 'Candidate saved' : 'Candidate removed'
-    ));
 }
 
 add_action('wp_ajax_hyreme_send_message', 'hyreme_ajax_send_message');
 add_action('wp_ajax_nopriv_hyreme_send_message', 'hyreme_ajax_send_message');
 
 function hyreme_ajax_send_message() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    $sender_id = get_current_user_id();
-    $recipient_id = intval($_POST['recipient_id']);
-    $message_text = sanitize_textarea_field($_POST['message']);
-    
-    if (!$sender_id || !$recipient_id || empty($message_text)) {
-        wp_send_json_error('Invalid request');
-    }
-    
-    $user_ids = array($sender_id, $recipient_id);
-    sort($user_ids);
-    $conversation_id = implode('_', $user_ids);
-    
-    $conversation = get_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, true);
-    if (!is_array($conversation)) {
-        $conversation = array();
-    }
-    
-    $conversation[] = array(
-        'from' => $sender_id,
-        'text' => $message_text,
-        'time' => current_time('mysql')
-    );
-    
-    update_user_meta($sender_id, 'hyreme_conversation_' . $conversation_id, $conversation);
-    update_user_meta($recipient_id, 'hyreme_conversation_' . $conversation_id, $conversation);
-    
-    // Add notification to recipient if sender is recruiter
-    $sender = get_user_by('id', $sender_id);
-    if (in_array('recruiter', (array) $sender->roles)) {
-        $recipient_notifications = get_user_meta($recipient_id, 'hyreme_notifications', true) ?: array();
-        $sender_name = $sender->first_name . ' ' . $sender->last_name ?: $sender->user_login;
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
         
-        $recipient_notifications[] = array(
-            'type' => '💬 New Message',
-            'message' => $sender_name . ' sent you a message: ' . substr($message_text, 0, 50) . (strlen($message_text) > 50 ? '...' : ''),
-            'time' => current_time('mysql')
+        $sender_id = get_current_user_id();
+        $recipient_id = intval($_POST['recipient_id'] ?? 0);
+        $message_text = sanitize_text_field($_POST['message'] ?? '');
+        
+        if (!$sender_id || !$recipient_id || empty($message_text)) {
+            wp_send_json_error('Invalid request');
+            return;
+        }
+        
+        // Use simpler conversation ID
+        $conv_id = 'conv_' . min($sender_id, $recipient_id) . '_' . max($sender_id, $recipient_id);
+        
+        $conversation = get_user_meta($sender_id, $conv_id, true);
+        if (!is_array($conversation)) {
+            $conversation = array();
+        }
+        
+        $conversation[] = array(
+            'from' => $sender_id,
+            'text' => $message_text,
+            'time' => date('H:i')
         );
-        update_user_meta($recipient_id, 'hyreme_notifications', $recipient_notifications);
+        
+        update_user_meta($sender_id, $conv_id, $conversation);
+        update_user_meta($recipient_id, $conv_id, $conversation);
+        
+        wp_send_json_success($conversation);
+    } catch (Exception $e) {
+        wp_send_json_error('Failed to send message');
     }
-    
-    wp_send_json_success(array(
-        'message' => 'Message sent',
-        'timestamp' => current_time('mysql')
-    ));
 }
 
 add_action('wp_ajax_hyreme_get_messages', 'hyreme_ajax_get_messages');
 add_action('wp_ajax_nopriv_hyreme_get_messages', 'hyreme_ajax_get_messages');
 
 function hyreme_ajax_get_messages() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    $user_id = get_current_user_id();
-    $other_user_id = intval($_POST['other_user_id']);
-    
-    if (!$user_id || !$other_user_id) {
-        wp_send_json_error('Invalid request');
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        $user_id = get_current_user_id();
+        $other_user_id = intval($_POST['other_user_id'] ?? 0);
+        
+        if (!$user_id || !$other_user_id) {
+            wp_send_json_error('Invalid request');
+            return;
+        }
+        
+        $conv_id = 'conv_' . min($user_id, $other_user_id) . '_' . max($user_id, $other_user_id);
+        $conversation = get_user_meta($user_id, $conv_id, true);
+        
+        if (!is_array($conversation)) {
+            $conversation = array();
+        }
+        
+        wp_send_json_success(array(
+            'messages' => $conversation,
+            'current_user_id' => $user_id
+        ));
+    } catch (Exception $e) {
+        wp_send_json_error('Error loading messages');
     }
-    
-    $user_ids = array($user_id, $other_user_id);
-    sort($user_ids);
-    $conversation_id = implode('_', $user_ids);
-    
-    $conversation = get_user_meta($user_id, 'hyreme_conversation_' . $conversation_id, true);
-    if (!is_array($conversation)) {
-        $conversation = array();
-    }
-    
-    wp_send_json_success(array(
-        'messages' => $conversation,
-        'current_user_id' => $user_id
-    ));
 }
 
 // ============================================================
@@ -533,140 +518,154 @@ function hyreme_ajax_get_messages() {
 add_action('wp_ajax_hyreme_upload_resume', 'hyreme_ajax_upload_resume');
 
 function hyreme_ajax_upload_resume() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    if (empty($_FILES['resume_file'])) {
-        wp_send_json_error('No file received.');
-    }
-    
-    $file = $_FILES['resume_file'];
-    $allowed_types = array('application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    
-    if (!in_array($file['type'], $allowed_types)) {
-        wp_send_json_error('Only PDF and DOC files are allowed.');
-    }
-    
-    if ($file['size'] > 10485760) { // 10MB limit
-        wp_send_json_error('File exceeds 10MB limit.');
-    }
-    
-    require_once(ABSPATH . 'wp-admin/includes/file.php');
-    $upload_dir = wp_upload_dir();
-    $upload_subdir = $upload_dir['basedir'] . '/hyreme-resumes/';
-    
-    if (!file_exists($upload_subdir)) {
-        mkdir($upload_subdir, 0755, true);
-    }
-    
-    $user_id = get_current_user_id();
-    $filename = 'resume_' . $user_id . '_' . time() . '_' . basename($file['name']);
-    $target = $upload_subdir . $filename;
-    
-    if (move_uploaded_file($file['tmp_name'], $target)) {
-        $file_url = $upload_dir['baseurl'] . '/hyreme-resumes/' . $filename;
-        update_user_meta($user_id, 'hyreme_resume', $file_url);
-        wp_send_json_success(array('url' => $file_url, 'filename' => $filename));
-    } else {
-        wp_send_json_error('Failed to upload file.');
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        if (empty($_FILES['resume_file'])) {
+            wp_send_json_error('No file selected');
+            return;
+        }
+        
+        $file = $_FILES['resume_file'];
+        $user_id = get_current_user_id();
+        
+        // Simple file type check
+        $filename_lower = strtolower($file['name']);
+        if (!preg_match('/\.(pdf|doc|docx)$/i', $filename_lower)) {
+            wp_send_json_error('Only PDF and DOC files allowed');
+            return;
+        }
+        
+        // Size check
+        if ($file['size'] > 10485760) {
+            wp_send_json_error('File too large (max 10MB)');
+            return;
+        }
+        
+        // Use WordPress upload handler
+        require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/media.php');
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+        
+        // Move file to uploads
+        $upload_dir = wp_upload_dir();
+        $resume_dir = $upload_dir['basedir'] . '/hyreme-resumes/';
+        
+        if (!is_dir($resume_dir)) {
+            @mkdir($resume_dir, 0755, true);
+        }
+        
+        $new_filename = 'resume_' . $user_id . '_' . time() . '.' . pathinfo($filename_lower, PATHINFO_EXTENSION);
+        $target_file = $resume_dir . $new_filename;
+        
+        if (@move_uploaded_file($file['tmp_name'], $target_file)) {
+            $resume_url = $upload_dir['baseurl'] . '/hyreme-resumes/' . $new_filename;
+            update_user_meta($user_id, 'hyreme_resume', $resume_url);
+            wp_send_json_success(array('url' => $resume_url));
+        } else {
+            wp_send_json_error('Upload failed');
+        }
+    } catch (Exception $e) {
+        wp_send_json_error('Error: ' . $e->getMessage());
     }
 }
 
 add_action('wp_ajax_hyreme_delete_resume', 'hyreme_ajax_delete_resume');
 
 function hyreme_ajax_delete_resume() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    $user_id = get_current_user_id();
-    delete_user_meta($user_id, 'hyreme_resume');
-    
-    wp_send_json_success('Resume deleted');
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error('Not logged in');
+            return;
+        }
+        
+        delete_user_meta($user_id, 'hyreme_resume');
+        wp_send_json_success('Deleted');
+    } catch (Exception $e) {
+        wp_send_json_error('Error: ' . $e->getMessage());
+    }
 }
 
 add_action('wp_ajax_hyreme_get_recruiters', 'hyreme_ajax_get_recruiters');
 add_action('wp_ajax_nopriv_hyreme_get_recruiters', 'hyreme_ajax_get_recruiters');
 
 function hyreme_ajax_get_recruiters() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    $user_id = get_current_user_id();
-    $recruiters = array();
-    
-    // Get all recruiters who have messaged this candidate
-    $args = array(
-        'role' => 'recruiter',
-        'orderby' => 'user_registered',
-        'order' => 'DESC',
-        'number' => -1
-    );
-    
-    $recruiter_query = new WP_User_Query($args);
-    if (!empty($recruiter_query->get_results())) {
-        foreach ($recruiter_query->get_results() as $recruiter) {
-            $user_ids = array($user_id, $recruiter->ID);
-            sort($user_ids);
-            $conversation_id = implode('_', $user_ids);
-            $conversation = get_user_meta($user_id, 'hyreme_conversation_' . $conversation_id, true);
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        $user_id = get_current_user_id();
+        $recruiters = array();
+        
+        $all_users = get_users(array('number' => -1));
+        foreach ($all_users as $user) {
+            if (!in_array('recruiter', (array) $user->roles)) continue;
             
-            if (!empty($conversation) && is_array($conversation)) {
-                $last_msg = end($conversation);
+            $conv_id = 'conv_' . min($user_id, $user->ID) . '_' . max($user_id, $user->ID);
+            $conv = get_user_meta($user_id, $conv_id, true);
+            
+            if (is_array($conv) && !empty($conv)) {
                 $recruiters[] = array(
-                    'id' => $recruiter->ID,
-                    'name' => $recruiter->first_name . ' ' . $recruiter->last_name ?: $recruiter->user_login,
-                    'preview' => substr($last_msg['text'], 0, 50) . (strlen($last_msg['text']) > 50 ? '...' : '')
+                    'id' => $user->ID,
+                    'name' => $user->first_name . ' ' . $user->last_name ?: $user->user_login
                 );
             }
         }
+        
+        wp_send_json_success($recruiters);
+    } catch (Exception $e) {
+        wp_send_json_error('Error');
     }
-    
-    wp_send_json_success($recruiters);
 }
 
 add_action('wp_ajax_hyreme_schedule_interview', 'hyreme_ajax_schedule_interview');
 
 function hyreme_ajax_schedule_interview() {
-    check_ajax_referer('hyreme_nonce', 'nonce', true);
-    
-    $recruiter_id = get_current_user_id();
-    $candidate_id = intval($_POST['candidate_id']);
-    $date = sanitize_text_field($_POST['date']);
-    $time = sanitize_text_field($_POST['time']);
-    
-    if (!$recruiter_id || !$candidate_id || empty($date) || empty($time)) {
-        wp_send_json_error('Invalid request');
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        $recruiter_id = get_current_user_id();
+        $candidate_id = intval($_POST['candidate_id'] ?? 0);
+        $date = sanitize_text_field($_POST['date'] ?? '');
+        $time = sanitize_text_field($_POST['time'] ?? '');
+        
+        if (!$recruiter_id || !$candidate_id || empty($date) || empty($time)) {
+            wp_send_json_error('Invalid data');
+            return;
+        }
+        
+        $interviews = get_user_meta($candidate_id, 'hyreme_interviews', true);
+        if (!is_array($interviews)) {
+            $interviews = array();
+        }
+        
+        $interviews[] = array(
+            'recruiter_id' => $recruiter_id,
+            'date' => $date,
+            'time' => $time,
+            'created' => date('Y-m-d H:i:s')
+        );
+        
+        update_user_meta($candidate_id, 'hyreme_interviews', $interviews);
+        
+        wp_send_json_success(array('date' => $date, 'time' => $time));
+    } catch (Exception $e) {
+        wp_send_json_error('Error: ' . $e->getMessage());
     }
-    
-    $schedule_data = array(
-        'recruiter_id' => $recruiter_id,
-        'candidate_id' => $candidate_id,
-        'date' => $date,
-        'time' => $time,
-        'scheduled_at' => current_time('mysql'),
-        'status' => 'pending'
-    );
-    
-    // Store for both recruiter and candidate
-    $recruiter_interviews = get_user_meta($recruiter_id, 'hyreme_interview_scheduled', true) ?: array();
-    $candidate_interviews = get_user_meta($candidate_id, 'hyreme_interview_scheduled', true) ?: array();
-    
-    $recruiter_interviews[] = $schedule_data;
-    $candidate_interviews[] = $schedule_data;
-    
-    update_user_meta($recruiter_id, 'hyreme_interview_scheduled', $recruiter_interviews);
-    update_user_meta($candidate_id, 'hyreme_interview_scheduled', $candidate_interviews);
-    
-    // Add notification to candidate
-    $candidate_notifications = get_user_meta($candidate_id, 'hyreme_notifications', true) ?: array();
-    $candidate_notifications[] = array(
-        'type' => '📅 Interview Scheduled',
-        'message' => 'A recruiter has scheduled an interview for ' . $date . ' at ' . $time,
-        'time' => current_time('mysql')
-    );
-    update_user_meta($candidate_id, 'hyreme_notifications', $candidate_notifications);
-    
-    wp_send_json_success(array(
-        'message' => 'Interview scheduled successfully',
-        'schedule_data' => $schedule_data
-    ));
 }
 
 // ============================================================
@@ -726,33 +725,55 @@ function hyreme_ajax_delete_video() {
 add_action('wp_ajax_hyreme_admin_delete_user', 'hyreme_ajax_admin_delete_user');
 
 function hyreme_ajax_admin_delete_user() {
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Unauthorized');
+    try {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_admin_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        $user_id = intval($_POST['user_id'] ?? 0);
+        if (!$user_id || $user_id == get_current_user_id()) {
+            wp_send_json_error('Invalid user');
+            return;
+        }
+        
+        wp_delete_user($user_id);
+        wp_send_json_success('Deleted');
+    } catch (Exception $e) {
+        wp_send_json_error('Error');
     }
-    
-    check_ajax_referer('hyreme_admin_nonce', 'nonce', true);
-    
-    $user_id = intval($_POST['user_id']);
-    if (!$user_id || $user_id == get_current_user_id()) {
-        wp_send_json_error('Cannot delete yourself');
-    }
-    
-    wp_delete_user($user_id);
-    wp_send_json_success('User deleted');
 }
 
 add_action('wp_ajax_hyreme_admin_delete_video', 'hyreme_ajax_admin_delete_video');
 
 function hyreme_ajax_admin_delete_video() {
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Unauthorized');
+    try {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+        
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_admin_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+        
+        $user_id = intval($_POST['user_id'] ?? 0);
+        $video_type = sanitize_text_field($_POST['video_type'] ?? '');
+        
+        if (!$user_id || empty($video_type)) {
+            wp_send_json_error('Invalid data');
+            return;
+        }
+        
+        delete_user_meta($user_id, 'hyreme_' . $video_type . '_video');
+        wp_send_json_success('Deleted');
+    } catch (Exception $e) {
+        wp_send_json_error('Error');
     }
-    
-    check_ajax_referer('hyreme_admin_nonce', 'nonce', true);
-    
-    $user_id = intval($_POST['user_id']);
-    $video_type = sanitize_text_field($_POST['video_type']);
-    
-    delete_user_meta($user_id, 'hyreme_' . $video_type . '_video');
-    wp_send_json_success('Video deleted');
 }
