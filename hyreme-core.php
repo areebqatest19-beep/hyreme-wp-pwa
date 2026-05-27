@@ -10,6 +10,7 @@ add_action('template_redirect', 'hyreme_auth_system', 1);
 
 function hyreme_auth_system() {
     if ( is_admin() ) return;
+    if ( is_front_page() || is_home() ) { wp_safe_redirect( home_url('/account/') ); exit; }
     
     // --- ROUTE TO ACCOUNT/DASHBOARD ---
     if ( is_page('account') ) {
@@ -720,7 +721,9 @@ function hyreme_ajax_upload_video() {
         $user_id = get_current_user_id();
         $type = sanitize_text_field($_POST['video_type']); // 'intro', 'portfolio', or 'skill'
         $meta_key = 'hyreme_' . $type . '_video';
+        $hashtags = sanitize_text_field($_POST['hashtags'] ?? '');
         update_user_meta($user_id, $meta_key, $movefile['url']);
+        update_user_meta($user_id, 'hyreme_' . $type . '_hashtags', $hashtags);
         wp_send_json_success(array('url' => $movefile['url']));
     } else {
         wp_send_json_error($movefile['error']);

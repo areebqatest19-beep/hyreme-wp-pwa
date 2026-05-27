@@ -28,6 +28,7 @@ if (!empty($candidates->get_results())) {
     foreach ($candidates->get_results() as $candidate) {
         $intro_video = get_user_meta($candidate->ID, 'hyreme_intro_video', true);
         $resume = get_user_meta($candidate->ID, 'hyreme_resume', true);
+        $hashtags = get_user_meta($candidate->ID, 'hyreme_intro_hashtags', true);
         
         // Only include candidates who have uploaded at least one video
         if (!empty($intro_video)) {
@@ -39,6 +40,7 @@ if (!empty($candidates->get_results())) {
                 'avatar' => '👤', 
                 'video' => esc_url($intro_video),
                 'resume' => esc_url($resume),
+                'hashtags' => $hashtags ?: '',
                 'skills' => get_user_meta($candidate->ID, 'hyreme_skills', true) ?: '',
                 'saved' => false
             );
@@ -95,7 +97,8 @@ if (!empty($candidates->get_results())) {
 
         /* FEED SECTION */
         .feed-wrapper { display: flex; gap: 2rem; height: calc(100vh - 120px); }
-        .filter-panel { width: 280px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; padding: 1.5rem; height: fit-content; position: sticky; top: 2rem; }
+        .filter-panel { width: 280px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; padding: 1.5rem; height: fit-content; position: absolute; top: 4rem; right: 1rem; z-index: 40; box-shadow: 0 20px 50px rgba(0,0,0,0.9); }
+        .hidden { display: none; }
         .filter-panel h3 { color: #22d3ee; font-size: 1.1rem; margin-bottom: 1.5rem; font-weight: 600; }
         .filter-group { margin-bottom: 1.5rem; }
         .filter-label { color: #cbd5e1; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.5rem; display: block; }
@@ -145,17 +148,17 @@ if (!empty($candidates->get_results())) {
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
-            .sidebar { bottom: 0; left: 0; width: 100%; height: 70px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+            .sidebar { bottom: 0; left: 0; width: 100%; height: 75px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); border-radius: 1.5rem 1.5rem 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
             .sidebar h2, .sidebar h3, .sidebar p, .sidebar .welcome-box { display: none; }
-            .nav-item { flex-direction: column; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.7rem; justify-content: center; border: none !important; background: transparent !important; }
+            .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.65rem; text-align: center; border: none !important; background: transparent !important; }
             .nav-item span:last-child { display: none; }
-            .nav-item span:first-child { font-size: 1.5rem; }
+            .nav-item span:first-child { font-size: 1.4rem; margin-bottom: 2px; }
             .logout-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
             .logout-btn span { display: none; }
             .main-content { margin-left: 0; }
             .content-area { padding: 1.5rem; padding-bottom: 90px; }
             .feed-wrapper { flex-direction: column; height: auto; }
-            .filter-panel { width: 100%; position: static; }
+            .filter-panel { width: 90%; right: 5%; }
             .reels-feed { height: auto; padding-right: 0; }
             .video-container { max-width: 100%; }
             .messages-wrapper { flex-direction: column; height: auto; }
@@ -201,10 +204,14 @@ if (!empty($candidates->get_results())) {
             </div>
 
             <div class="content-area">
-                <div id="discover" class="section active">
+                <div id="discover" class="section active" style="position: relative;">
+                    <button onclick="document.querySelector('.filter-panel').classList.toggle('hidden')" class="absolute top-4 right-4 z-50 bg-slate-800 border border-cyan-500/30 text-cyan-400 px-4 py-2 rounded-full font-semibold shadow-lg">🔍 Filters</button>
                     <div class="feed-wrapper">
-                        <div class="filter-panel">
-                            <h3>📊 Filters</h3>
+                        <div class="filter-panel hidden">
+                            <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 1rem;">
+                                <h3 style="margin: 0;">📊 Filters</h3>
+                                <button onclick="document.querySelector('.filter-panel').classList.toggle('hidden')" style="background: rgba(148, 163, 184, 0.15); color: #e2e8f0; border: 1px solid rgba(148, 163, 184, 0.3); padding: 0.35rem 0.6rem; border-radius: 0.5rem; cursor: pointer;">✕</button>
+                            </div>
                             <div class="filter-group">
                                 <label class="filter-label">Skills</label>
                                 <select class="filter-select" id="skillFilter">
@@ -225,6 +232,10 @@ if (!empty($candidates->get_results())) {
                                     <option value="us">United States</option>
                                     <option value="uk">United Kingdom</option>
                                 </select>
+                            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">Search Hashtags</label>
+                                <input type="text" class="filter-input" id="hashtagFilter" placeholder="#react #frontend">
                             </div>
                             <button class="filter-btn" id="applyFiltersBtn" onclick="applyFilters()">Apply Filters</button>
                         </div>
@@ -323,6 +334,7 @@ if (!empty($candidates->get_results())) {
                                 <div class="candidate-header-info">
                                     <h3>${candidate.name}</h3>
                                     <p>${candidate.role}</p>
+                                    <p class="text-cyan-400 text-sm font-semibold mt-1">${candidate.hashtags || ''}</p>
                                 </div>
                             </div>
                             <div class="video-actions">
@@ -425,12 +437,14 @@ if (!empty($candidates->get_results())) {
             
             const skillFilter = document.getElementById('skillFilter').value.toLowerCase();
             const locationFilter = document.getElementById('locationFilter').value.toLowerCase();
+            const hashtagFilter = document.getElementById('hashtagFilter')?.value.toLowerCase() || '';
             
             setTimeout(() => {
                 let filtered = window.allCandidates.filter(c => {
                     let matchSkill = !skillFilter || (c.skills && c.skills.toLowerCase().includes(skillFilter));
                     let matchLoc = !locationFilter || (c.location && c.location.toLowerCase().includes(locationFilter));
-                    return matchSkill && matchLoc;
+                    let matchHashtag = !hashtagFilter || (c.hashtags && c.hashtags.toLowerCase().includes(hashtagFilter));
+                    return matchSkill && matchLoc && matchHashtag;
                 });
                 
                 activeCandidates = [...filtered];

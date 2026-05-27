@@ -112,6 +112,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .upload-zone .note { font-size: 0.85rem; color: #64748b; }
         .logout-btn { text-align: center; padding: 0.75rem; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; border-radius: 0.5rem; cursor: pointer; transition: 0.3s; font-weight: 500; text-decoration: none; display: block; }
         .logout-btn:hover { background: rgba(239, 68, 68, 0.3); }
+        .hidden { display: none; }
         .messages-wrapper { display: flex; gap: 2rem; height: calc(100vh - 120px); }
         .chat-list { width: 300px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; overflow-y: auto; display: flex; flex-direction: column; }
         .chat-search { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
@@ -134,11 +135,11 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
-            .sidebar { bottom: 0; left: 0; width: 100%; height: 70px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+            .sidebar { bottom: 0; left: 0; width: 100%; height: 75px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); border-radius: 1.5rem 1.5rem 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
             .sidebar h2, .sidebar h3, .sidebar p, .sidebar .welcome-box { display: none; }
-            .nav-item { flex-direction: column; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.7rem; justify-content: center; border: none !important; background: transparent !important; }
+            .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.65rem; text-align: center; border: none !important; background: transparent !important; }
             .nav-item span:last-child { display: none; }
-            .nav-item span:first-child { font-size: 1.5rem; }
+            .nav-item span:first-child { font-size: 1.4rem; margin-bottom: 2px; }
             .logout-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
             .logout-btn span { display: none; }
             .main-content { margin-left: 0; padding: 1.5rem; padding-bottom: 90px; }
@@ -426,6 +427,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                     <video style="width: 100%; height: 300px; object-fit: contain; border-radius: 0.5rem; margin-bottom: 1rem;" controls>
                         <source src="${videoUrl}" type="video/mp4">
                     </video>
+                    <input type="text" id="hashtag-input-${videoType}" placeholder="e.g. #react #frontend" class="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white mb-2 text-sm">
                     <div style="display: flex; gap: 1rem;">
                         <button onclick="confirmUpload('${videoType}', this)" style="flex: 1; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.75rem; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">💾 Confirm & Save Video</button>
                         <button onclick="cancelUpload('${videoType}')" style="flex: 1; background: rgba(100, 116, 139, 0.2); color: #cbd5e1; padding: 0.75rem; border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; cursor: pointer;">Cancel</button>
@@ -444,6 +446,8 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             formData.append('nonce', document.getElementById('hyreme_video_nonce').value);
             formData.append('video_file', file);
             formData.append('video_type', videoType);
+            const hashtagInput = document.getElementById('hashtag-input-' + videoType);
+            formData.append('hashtags', hashtagInput ? hashtagInput.value : '');
             
             const previewContainer = document.getElementById(videoType + '-preview');
             previewContainer.innerHTML = `
