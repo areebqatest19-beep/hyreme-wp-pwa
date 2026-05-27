@@ -144,7 +144,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
-            .main-content { margin-left: 0; padding: 1.5rem; padding-bottom: 90px; }
+            .main-content { margin-left: 0; padding: 1.5rem; }
             .header h1 { font-size: 1.75rem; }
             .messages-wrapper { flex-direction: column; height: auto; }
             .chat-list { width: 100%; max-height: 40vh; }
@@ -639,6 +639,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                         const card = document.createElement('div');
                         card.className = 'p-4 border-b border-white/10 hover:bg-slate-900/70 cursor-pointer';
                         card.dataset.recruiterId = recruiter.id;
+                        card.dataset.recruiterName = recruiter.name;
                         card.innerHTML = `<div class="text-slate-100 font-semibold">${recruiter.name}</div><div class="text-slate-400 text-xs mt-1">${recruiter.preview || 'Click to open'}</div>`;
                         card.onclick = () => openCandidateChat(recruiter.id, recruiter.name);
                         recruitersList.appendChild(card);
@@ -652,7 +653,8 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             document.querySelectorAll('#candidateChatList [data-recruiter-id]').forEach(item => item.classList.remove('bg-slate-900/70'));
             const activeItem = document.querySelector(`#candidateChatList [data-recruiter-id="${recruiterId}"]`);
             if (activeItem) activeItem.classList.add('bg-slate-900/70');
-            document.getElementById('candidateChatHeaderTitle').textContent = `💬 ${recruiterName}`;
+            const displayName = recruiterName || activeItem?.dataset.recruiterName || 'Recruiter';
+            document.getElementById('candidateChatHeaderTitle').textContent = `💬 ${displayName}`;
             document.getElementById('candidateChatInputArea').classList.remove('hidden');
             loadCandidateMessages();
             

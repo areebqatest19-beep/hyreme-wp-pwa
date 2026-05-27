@@ -9,6 +9,71 @@ if (!current_user_can('manage_options')) {
     wp_die('Unauthorized');
 }
 
+$gate_user = get_option('hyreme_admin_gate_user');
+$gate_pass = get_option('hyreme_admin_gate_pass');
+if (empty($gate_user) || empty($gate_pass)) {
+    $gate_user = 'AdminSite@123';
+    $gate_pass = wp_hash_password('AdminSite@123');
+    update_option('hyreme_admin_gate_user', $gate_user);
+    update_option('hyreme_admin_gate_pass', $gate_pass);
+}
+
+$gate_error = '';
+if (isset($_POST['hyreme_admin_gate_submit'])) {
+    if (!isset($_POST['hyreme_admin_gate_nonce']) || !wp_verify_nonce($_POST['hyreme_admin_gate_nonce'], 'hyreme_admin_gate')) {
+        $gate_error = 'Security check failed. Please try again.';
+    } else {
+        $input_user = sanitize_text_field($_POST['gate_user'] ?? '');
+        $input_pass = $_POST['gate_pass'] ?? '';
+        if ($input_user === $gate_user && wp_check_password($input_pass, $gate_pass)) {
+            update_user_meta(get_current_user_id(), 'hyreme_admin_gate_until', time() + 43200);
+            wp_safe_redirect(admin_url('admin.php?page=hyreme-dashboard'));
+            exit;
+        } else {
+            $gate_error = 'Invalid admin credentials.';
+        }
+    }
+}
+
+$gate_until = intval(get_user_meta(get_current_user_id(), 'hyreme_admin_gate_until', true));
+if ($gate_until < time()) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HYREME Admin Access</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+        <div class="w-full max-w-md bg-slate-900/80 border border-white/10 rounded-2xl p-8 shadow-2xl">
+            <h1 class="text-2xl font-bold text-cyan-400 mb-2">Admin Access</h1>
+            <p class="text-slate-400 mb-6">Enter the custom admin credentials to continue.</p>
+            <?php if (!empty($gate_error)): ?>
+                <div class="bg-red-500/20 border border-red-500/40 text-red-200 px-4 py-2 rounded mb-4 text-sm">
+                    <?php echo esc_html($gate_error); ?>
+                </div>
+            <?php endif; ?>
+            <form method="POST" class="space-y-4">
+                <?php wp_nonce_field('hyreme_admin_gate', 'hyreme_admin_gate_nonce'); ?>
+                <div>
+                    <label class="text-sm text-slate-300">Admin Username</label>
+                    <input type="text" name="gate_user" class="w-full mt-2 bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="text-sm text-slate-300">Admin Password</label>
+                    <input type="password" name="gate_pass" class="w-full mt-2 bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none" required>
+                </div>
+                <button type="submit" name="hyreme_admin_gate_submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold py-3 rounded-lg hover:scale-[1.01] transition">Unlock Admin Dashboard</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    <?php
+    return;
+}
+
 $args_candidates = array('role' => 'candidate', 'number' => -1);
 $candidates_query = new WP_User_Query($args_candidates);
 $total_candidates = $candidates_query->get_total();

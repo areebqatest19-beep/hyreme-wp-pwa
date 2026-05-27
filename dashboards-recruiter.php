@@ -127,6 +127,7 @@ if (!empty($candidates->get_results())) {
         .video-actions { display: flex; flex-direction: column; gap: 0.75rem; pointer-events: auto; align-self: flex-end; position: absolute; bottom: 6rem; right: 1rem; z-index: 10; }
         .action-btn { width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s; background: rgba(255, 255, 255, 0.15); color: white; backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); }
         .action-btn:hover { transform: scale(1.15); background: rgba(34, 211, 238, 0.4); border-color: #22d3ee; }
+        .mobile-logout-btn { display: none; }
 
         /* MESSAGES */
         .messages-wrapper { display: flex; gap: 2rem; height: calc(100vh - 120px); }
@@ -158,6 +159,7 @@ if (!empty($candidates->get_results())) {
             .nav-item span:first-child { font-size: 1.5rem; display: block; text-align: center; }
             .nav-item span:last-child { display: none; }
             .main-content { padding-bottom: 80px; }
+            .mobile-logout-btn { display: flex; }
         }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
@@ -192,6 +194,7 @@ if (!empty($candidates->get_results())) {
                 <div class="nav-item active" data-section="discover" onclick="switchSection('discover')"><span>🎬</span><span>Discover Feed</span></div>
                 <div class="nav-item" data-section="saved" onclick="switchSection('saved')"><span>❤️</span><span>Saved Candidates</span></div>
                 <div class="nav-item" data-section="messages" onclick="switchSection('messages')"><span>💬</span><span>Messages</span></div>
+                <button class="nav-item mobile-logout-btn" onclick="location.href='<?php echo wp_logout_url(home_url('/login/')); ?>'" title="Logout"><span>🚪</span><span>Logout</span></button>
             </nav>
             <div style="padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
                 <div class="welcome-box" style="background: rgba(34, 211, 238, 0.1); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(34, 211, 238, 0.2);">
