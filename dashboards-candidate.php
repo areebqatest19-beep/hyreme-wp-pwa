@@ -25,33 +25,18 @@ if ( isset($_POST['hyreme_profile_submit']) && $_SERVER['REQUEST_METHOD'] == 'PO
         $error_msg = 'Security check failed. Please try again.';
     } else {
         $user_id = $current_user->ID;
-        $submitted_email = sanitize_email($_POST['email'] ?? '');
-        $submitted_mobile = sanitize_text_field($_POST['mobile'] ?? '');
-        $email_verified = get_user_meta($user_id, 'hyreme_email_verified', true) === '1';
-        $mobile_verified = get_user_meta($user_id, 'hyreme_mobile_verified', true) === '1';
-        if (empty($submitted_email) || empty($submitted_mobile)) {
-            $error_msg = 'Email and mobile number are required.';
-        } elseif (!$email_verified || strtolower($submitted_email) !== strtolower($current_user->user_email)) {
-            $error_msg = 'Please verify your email before saving.';
-        } elseif (!$mobile_verified || $submitted_mobile !== get_user_meta($user_id, 'hyreme_mobile', true)) {
-            $error_msg = 'Please verify your mobile number before saving.';
-        }
-
-        if (empty($error_msg)) {
-            wp_update_user( array(
-                'ID' => $user_id,
-                'first_name' => sanitize_text_field($_POST['first_name']),
-                'last_name' => sanitize_text_field($_POST['last_name']),
-            ) );
-            update_user_meta($user_id, 'hyreme_skills', sanitize_textarea_field($_POST['skills']));
-            update_user_meta($user_id, 'hyreme_experience', sanitize_textarea_field($_POST['experience']));
-            update_user_meta($user_id, 'hyreme_education', sanitize_textarea_field($_POST['education']));
-            update_user_meta($user_id, 'hyreme_portfolio_links', sanitize_textarea_field($_POST['portfolio_links']));
-            update_user_meta($user_id, 'hyreme_location', sanitize_text_field($_POST['location']));
-            update_user_meta($user_id, 'hyreme_salary_expectations', sanitize_text_field($_POST['salary_expectations']));
-            update_user_meta($user_id, 'hyreme_mobile', $submitted_mobile);
-            $update_msg = '✅ Profile updated successfully!';
-        }
+        wp_update_user( array(
+            'ID' => $user_id,
+            'first_name' => sanitize_text_field($_POST['first_name']),
+            'last_name' => sanitize_text_field($_POST['last_name']),
+        ) );
+        update_user_meta($user_id, 'hyreme_skills', sanitize_textarea_field($_POST['skills']));
+        update_user_meta($user_id, 'hyreme_experience', sanitize_textarea_field($_POST['experience']));
+        update_user_meta($user_id, 'hyreme_education', sanitize_textarea_field($_POST['education']));
+        update_user_meta($user_id, 'hyreme_portfolio_links', sanitize_textarea_field($_POST['portfolio_links']));
+        update_user_meta($user_id, 'hyreme_location', sanitize_text_field($_POST['location']));
+        update_user_meta($user_id, 'hyreme_salary_expectations', sanitize_text_field($_POST['salary_expectations']));
+        $update_msg = '✅ Profile updated successfully!';
     }
 }
 
@@ -62,10 +47,6 @@ $skill_video_url = get_user_meta($user_id, 'hyreme_skill_video', true);
 
 $first_name = $current_user->first_name;
 $last_name = $current_user->last_name;
-$email = $current_user->user_email;
-$mobile = get_user_meta($user_id, 'hyreme_mobile', true);
-$email_verified = get_user_meta($user_id, 'hyreme_email_verified', true) === '1';
-$mobile_verified = get_user_meta($user_id, 'hyreme_mobile_verified', true) === '1';
 $skills = get_user_meta($user_id, 'hyreme_skills', true);
 $experience = get_user_meta($user_id, 'hyreme_experience', true);
 $education = get_user_meta($user_id, 'hyreme_education', true);
@@ -223,32 +204,6 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                                 <input type="text" id="last_name" name="last_name" class="input-field" value="<?php echo esc_attr($last_name); ?>" required>
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                            <div class="form-group">
-                                <label for="email">Email</label>
-                                <input type="email" id="email" name="email" class="input-field" value="<?php echo esc_attr($email); ?>" required>
-                                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
-                                    <button type="button" id="emailVerifyBtn" class="bg-cyan-600/80 text-white px-3 py-1 rounded text-sm">Verify Email</button>
-                                    <span id="emailVerifiedBadge" style="color:#10b981; font-size:0.85rem; display: <?php echo $email_verified ? 'inline' : 'none'; ?>;">Verified</span>
-                                </div>
-                                <div id="emailOtpArea" class="hidden" style="margin-top: 0.5rem; display: none; gap: 0.5rem;">
-                                    <input type="text" id="emailOtpInput" class="input-field" placeholder="Enter OTP">
-                                    <button type="button" id="emailOtpVerifyBtn" class="bg-emerald-600/80 text-white px-3 py-1 rounded text-sm">Verify</button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="mobile">Mobile Number</label>
-                                <input type="text" id="mobile" name="mobile" class="input-field" value="<?php echo esc_attr($mobile); ?>" required>
-                                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
-                                    <button type="button" id="mobileVerifyBtn" class="bg-cyan-600/80 text-white px-3 py-1 rounded text-sm">Verify Mobile</button>
-                                    <span id="mobileVerifiedBadge" style="color:#10b981; font-size:0.85rem; display: <?php echo $mobile_verified ? 'inline' : 'none'; ?>;">Verified</span>
-                                </div>
-                                <div id="mobileOtpArea" class="hidden" style="margin-top: 0.5rem; display: none; gap: 0.5rem;">
-                                    <input type="text" id="mobileOtpInput" class="input-field" placeholder="Enter OTP">
-                                    <button type="button" id="mobileOtpVerifyBtn" class="bg-emerald-600/80 text-white px-3 py-1 rounded text-sm">Verify</button>
-                                </div>
-                            </div>
-                        </div>
                         <div class="form-group">
                             <label for="location">Location</label>
                             <input type="text" id="location" name="location" class="input-field" value="<?php echo esc_attr($location); ?>">
@@ -273,7 +228,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                             <label for="salary_expectations">Salary Expectations (Annual)</label>
                             <input type="text" id="salary_expectations" name="salary_expectations" class="input-field" value="<?php echo esc_attr($salary_expectations); ?>">
                         </div>
-                        <button type="submit" name="hyreme_profile_submit" id="saveProfileBtn" class="btn-submit" style="align-self: flex-start;" <?php echo ($email_verified && $mobile_verified) ? '' : 'disabled'; ?>>💾 Save Profile</button>
+                        <button type="submit" name="hyreme_profile_submit" class="btn-submit" style="align-self: flex-start;">💾 Save Profile</button>
                     </form>
                 </div>
 
@@ -806,124 +761,6 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
 
         window.addEventListener('load', () => {
             loadRecruiters();
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            let emailVerified = <?php echo $email_verified ? 'true' : 'false'; ?>;
-            let mobileVerified = <?php echo $mobile_verified ? 'true' : 'false'; ?>;
-            const saveBtn = document.getElementById('saveProfileBtn');
-            const emailInput = document.getElementById('email');
-            const mobileInput = document.getElementById('mobile');
-            const emailVerifyBtn = document.getElementById('emailVerifyBtn');
-            const emailOtpArea = document.getElementById('emailOtpArea');
-            const emailOtpInput = document.getElementById('emailOtpInput');
-            const emailOtpVerifyBtn = document.getElementById('emailOtpVerifyBtn');
-            const emailVerifiedBadge = document.getElementById('emailVerifiedBadge');
-            const mobileVerifyBtn = document.getElementById('mobileVerifyBtn');
-            const mobileOtpArea = document.getElementById('mobileOtpArea');
-            const mobileOtpInput = document.getElementById('mobileOtpInput');
-            const mobileOtpVerifyBtn = document.getElementById('mobileOtpVerifyBtn');
-            const mobileVerifiedBadge = document.getElementById('mobileVerifiedBadge');
-
-            function updateSaveState() {
-                if (saveBtn) {
-                    saveBtn.disabled = !(emailVerified && mobileVerified);
-                }
-            }
-
-            if (emailInput) {
-                emailInput.addEventListener('input', () => {
-                    emailVerified = false;
-                    if (emailVerifiedBadge) emailVerifiedBadge.style.display = 'none';
-                    if (emailOtpArea) emailOtpArea.style.display = 'none';
-                    updateSaveState();
-                });
-            }
-
-            if (mobileInput) {
-                mobileInput.addEventListener('input', () => {
-                    mobileVerified = false;
-                    if (mobileVerifiedBadge) mobileVerifiedBadge.style.display = 'none';
-                    if (mobileOtpArea) mobileOtpArea.style.display = 'none';
-                    updateSaveState();
-                });
-            }
-
-            if (emailVerifyBtn) {
-                emailVerifyBtn.addEventListener('click', () => {
-                    const email = emailInput?.value.trim();
-                    if (!email) return alert('Enter your email first');
-                    fetch(ajaxurl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({ action: 'hyreme_send_email_otp', nonce: hyreme_nonce, email })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            if (emailOtpArea) emailOtpArea.style.display = 'flex';
-                        } else {
-                            alert('Error: ' + data.data);
-                        }
-                    });
-                });
-            }
-
-            if (emailOtpVerifyBtn) {
-                emailOtpVerifyBtn.addEventListener('click', () => {
-                    const otp = emailOtpInput?.value.trim();
-                    if (!otp) return alert('Enter the OTP');
-                    fetch(ajaxurl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({ action: 'hyreme_verify_email_otp', nonce: hyreme_nonce, otp })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            emailVerified = true;
-                            if (emailVerifiedBadge) emailVerifiedBadge.style.display = 'inline';
-                            if (emailOtpArea) emailOtpArea.style.display = 'none';
-                            updateSaveState();
-                        } else {
-                            alert('Error: ' + data.data);
-                        }
-                    });
-                });
-            }
-
-            if (mobileVerifyBtn) {
-                mobileVerifyBtn.addEventListener('click', () => {
-                    if (mobileOtpArea) mobileOtpArea.style.display = 'flex';
-                });
-            }
-
-            if (mobileOtpVerifyBtn) {
-                mobileOtpVerifyBtn.addEventListener('click', () => {
-                    const mobile = mobileInput?.value.trim();
-                    const otp = mobileOtpInput?.value.trim();
-                    if (!mobile) return alert('Enter your mobile number');
-                    if (!otp) return alert('Enter the OTP');
-                    fetch(ajaxurl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({ action: 'hyreme_verify_mobile', nonce: hyreme_nonce, mobile, otp })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            mobileVerified = true;
-                            if (mobileVerifiedBadge) mobileVerifiedBadge.style.display = 'inline';
-                            if (mobileOtpArea) mobileOtpArea.style.display = 'none';
-                            updateSaveState();
-                        } else {
-                            alert('Error: ' + data.data);
-                        }
-                    });
-                });
-            }
-
-            updateSaveState();
         });
     </script>
 </body>
