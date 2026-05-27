@@ -80,8 +80,8 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         }
         @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .container { display: flex; min-height: 100vh; }
-        .sidebar { width: 250px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-right: 1px solid rgba(255, 255, 255, 0.1); padding: 2rem 1.5rem; position: fixed; left: 0; top: 0; height: 100vh; display: flex; flex-direction: column; }
-        .main-content { margin-left: 250px; flex: 1; padding: 2rem; overflow-y: auto; }
+        .sidebar { position: fixed; z-index: 50; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); transition: all 0.3s; }
+        .main-content { margin-left: 0; flex: 1; padding: 2rem; overflow-y: auto; }
         .header { margin-bottom: 2rem; }
         .header h1 { font-size: 2.5rem; font-weight: bold; color: #22d3ee; margin-bottom: 0.5rem; }
         .header p { color: #94a3b8; font-size: 0.95rem; }
@@ -134,9 +134,14 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; position: fixed; bottom: 0; top: auto; left: 0; border-right: none; border-top: 1px solid rgba(255, 255, 255, 0.1); flex-direction: row; overflow-x: auto; padding: 0.75rem; gap: 0.5rem; z-index: 60; background: rgba(15, 23, 42, 0.95); }
-            .main-content { margin-left: 0; padding: 1.5rem; padding-bottom: 6rem; }
-            .nav-item { white-space: nowrap; flex: 0 0 auto; }
+            .sidebar { bottom: 0; left: 0; width: 100%; height: 70px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+            .sidebar h2, .sidebar h3, .sidebar p, .sidebar .welcome-box { display: none; }
+            .nav-item { flex-direction: column; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.7rem; justify-content: center; border: none !important; background: transparent !important; }
+            .nav-item span:last-child { display: none; }
+            .nav-item span:first-child { font-size: 1.5rem; }
+            .logout-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+            .logout-btn span { display: none; }
+            .main-content { margin-left: 0; padding: 1.5rem; padding-bottom: 90px; }
             .header h1 { font-size: 1.75rem; }
             .messages-wrapper { flex-direction: column; height: auto; }
             .chat-list { width: 100%; max-height: 40vh; }
@@ -145,6 +150,10 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             .messages-wrapper.chat-active .chat-window { flex: 1; }
             .chat-back-btn { display: inline-flex; }
             .analytics { grid-template-columns: 1fr; }
+        }
+        @media (min-width: 769px) {
+            .sidebar { top: 0; left: 0; width: 260px; height: 100vh; flex-direction: column; padding: 2rem 1.5rem; border-right: 1px solid rgba(255,255,255,0.1); }
+            .main-content { margin-left: 260px; }
         }
     </style>
 </head>
@@ -157,14 +166,14 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             </div>
             
             <nav onclick="switchSection(event)" style="flex: 1;">
-                <div class="nav-item active" data-section="profile"><span>👤</span> Profile</div>
-                <div class="nav-item" data-section="videos"><span>🎬</span> Video Resume</div>
-                <div class="nav-item" data-section="analytics"><span>📊</span> Analytics</div>
-                <div class="nav-item" data-section="messages"><span>💬</span> Messages</div>
-                <div class="nav-item" data-section="notifications"><span>🔔</span> Notifications</div>
+                <div class="nav-item active" data-section="profile"><span>👤</span><span>Profile</span></div>
+                <div class="nav-item" data-section="videos"><span>🎬</span><span>Video Resume</span></div>
+                <div class="nav-item" data-section="analytics"><span>📊</span><span>Analytics</span></div>
+                <div class="nav-item" data-section="messages"><span>💬</span><span>Messages</span></div>
+                <div class="nav-item" data-section="notifications"><span>🔔</span><span>Notifications</span></div>
             </nav>
 
-            <a href="<?php echo wp_logout_url(home_url('/login/')); ?>" class="logout-btn">🚪 Logout</a>
+            <a href="<?php echo wp_logout_url(home_url('/login/')); ?>" class="logout-btn">🚪 <span>Logout</span></a>
         </div>
 
         <div class="main-content">

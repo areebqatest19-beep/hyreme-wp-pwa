@@ -81,8 +81,8 @@ if (!empty($candidates->get_results())) {
         }
 
         .container { display: flex; min-height: 100vh; }
-        .sidebar { width: 260px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border-right: 1px solid rgba(255, 255, 255, 0.1); padding: 2rem 1.5rem; position: fixed; left: 0; top: 0; height: 100vh; overflow-y: auto; z-index: 50; }
-        .main-content { margin-left: 260px; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar { position: fixed; z-index: 50; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); transition: all 0.3s; }
+        .main-content { margin-left: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .header { padding: 2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.6); }
         .header h1 { font-size: 2rem; font-weight: bold; color: #22d3ee; margin-bottom: 0.25rem; }
         .header p { color: #94a3b8; font-size: 0.9rem; }
@@ -145,10 +145,15 @@ if (!empty($candidates->get_results())) {
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; position: fixed; bottom: 0; top: auto; left: 0; border-right: none; border-top: 1px solid rgba(255, 255, 255, 0.1); flex-direction: row; overflow-x: auto; padding: 0.75rem; gap: 0.5rem; z-index: 60; background: rgba(15, 23, 42, 0.95); }
+            .sidebar { bottom: 0; left: 0; width: 100%; height: 70px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
+            .sidebar h2, .sidebar h3, .sidebar p, .sidebar .welcome-box { display: none; }
+            .nav-item { flex-direction: column; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.7rem; justify-content: center; border: none !important; background: transparent !important; }
+            .nav-item span:last-child { display: none; }
+            .nav-item span:first-child { font-size: 1.5rem; }
+            .logout-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
+            .logout-btn span { display: none; }
             .main-content { margin-left: 0; }
-            .content-area { padding: 1.5rem; padding-bottom: 6rem; }
-            .nav-item { white-space: nowrap; flex: 0 0 auto; }
+            .content-area { padding: 1.5rem; padding-bottom: 90px; }
             .feed-wrapper { flex-direction: column; height: auto; }
             .filter-panel { width: 100%; position: static; }
             .reels-feed { height: auto; padding-right: 0; }
@@ -161,6 +166,10 @@ if (!empty($candidates->get_results())) {
             .chat-back-btn { display: inline-flex; }
             #scheduleModal > div { width: 95% !important; max-width: 420px !important; padding: 1.5rem !important; }
         }
+        @media (min-width: 769px) {
+            .sidebar { top: 0; left: 0; width: 260px; height: 100vh; flex-direction: column; padding: 2rem 1.5rem; border-right: 1px solid rgba(255,255,255,0.1); }
+            .main-content { margin-left: 260px; }
+        }
     </style>
 </head>
 <body>
@@ -171,17 +180,17 @@ if (!empty($candidates->get_results())) {
                 <p style="color: #64748b; font-size: 0.85rem; margin: 0.5rem 0 0 0;">Recruiter</p>
             </div>
             <nav style="flex: 1;">
-                <div class="nav-item active" data-section="discover" onclick="switchSection('discover')"><span>🎬</span> Discover Feed</div>
-                <div class="nav-item" data-section="saved" onclick="switchSection('saved')"><span>❤️</span> Saved Candidates</div>
-                <div class="nav-item" data-section="messages" onclick="switchSection('messages')"><span>💬</span> Messages</div>
-                <div class="nav-item" data-section="profile" onclick="switchSection('profile')"><span>⚙️</span> Settings</div>
+                <div class="nav-item active" data-section="discover" onclick="switchSection('discover')"><span>🎬</span><span>Discover Feed</span></div>
+                <div class="nav-item" data-section="saved" onclick="switchSection('saved')"><span>❤️</span><span>Saved Candidates</span></div>
+                <div class="nav-item" data-section="messages" onclick="switchSection('messages')"><span>💬</span><span>Messages</span></div>
+                <div class="nav-item" data-section="profile" onclick="switchSection('profile')"><span>⚙️</span><span>Settings</span></div>
             </nav>
             <div style="padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <div style="background: rgba(34, 211, 238, 0.1); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(34, 211, 238, 0.2);">
+                <div class="welcome-box" style="background: rgba(34, 211, 238, 0.1); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(34, 211, 238, 0.2);">
                     <p style="color: #cbd5e1; font-size: 0.85rem; margin: 0;">Welcome back,</p>
                     <p style="color: #22d3ee; font-weight: 600; margin: 0.25rem 0 0 0;"><?php echo esc_html($current_user->first_name ?: $current_user->user_login); ?></p>
                 </div>
-                <button onclick="location.href='<?php echo wp_logout_url(home_url('/login/')); ?>'" style="width: 100%; padding: 0.75rem; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 0.5rem; cursor: pointer; font-weight: 500;">Logout</button>
+                <button class="logout-btn" onclick="location.href='<?php echo wp_logout_url(home_url('/login/')); ?>'" style="width: 100%; padding: 0.75rem; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 0.5rem; cursor: pointer; font-weight: 500;">🚪 <span>Logout</span></button>
             </div>
         </div>
 

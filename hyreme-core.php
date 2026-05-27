@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 add_action('template_redirect', 'hyreme_auth_system', 1);
 
 function hyreme_auth_system() {
+    if ( is_admin() ) return;
     
     // --- ROUTE TO ACCOUNT/DASHBOARD ---
     if ( is_page('account') ) {
@@ -159,7 +160,7 @@ function hyreme_auth_system() {
             <style>
                 body { margin: 0; padding: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); background-size: 200% 200%; animation: gradient-shift 15s ease infinite; font-family: sans-serif; }
                 @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-                .glassmorphism { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); width: 100%; max-width: 420px; padding: clamp(1.5rem, 4vw, 2.5rem); border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+                .glassmorphism { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); width: 90%; max-width: 400px; padding: 2rem; margin: 1rem; border-radius: 1.5rem; box-sizing: border-box; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
                 .input-field { background: rgba(30, 41, 59, 0.8); border: 1.5px solid rgba(255, 255, 255, 0.15); color: white; width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; outline: none; transition: border 0.3s; box-sizing: border-box; }
                 .input-field:focus { border-color: #06b6d4; }
                 .btn-toggle { padding: 0.6rem; border-radius: 9999px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; flex: 1; transition: 0.3s; }
