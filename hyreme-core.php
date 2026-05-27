@@ -533,6 +533,101 @@ function hyreme_ajax_get_messages() {
 }
 
 // ============================================================
+// EMAIL/MOBILE VERIFICATION (OTP)
+// ============================================================
+
+add_action('wp_ajax_hyreme_send_email_otp', 'hyreme_ajax_send_email_otp');
+function hyreme_ajax_send_email_otp() {
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        $email = sanitize_email($_POST['email'] ?? '');
+        if (!$user_id || empty($email) || !is_email($email)) {
+            wp_send_json_error('Invalid email');
+            return;
+        }
+
+        $otp = (string) wp_rand(100000, 999999);
+        update_user_meta($user_id, 'hyreme_email_otp', $otp);
+        update_user_meta($user_id, 'hyreme_email_otp_expires', time() + 600);
+        update_user_meta($user_id, 'hyreme_pending_email', $email);
+
+        $sent = wp_mail($email, 'Your HYREME Email Verification Code', "Your OTP is: {$otp}\nThis code expires in 10 minutes.");
+        if (!$sent) {
+            wp_send_json_error('Failed to send OTP. Please try again.');
+            return;
+        }
+
+        wp_send_json_success('OTP sent');
+    } catch (Exception $e) {
+        wp_send_json_error('Error sending OTP');
+    }
+}
+
+add_action('wp_ajax_hyreme_verify_email_otp', 'hyreme_ajax_verify_email_otp');
+function hyreme_ajax_verify_email_otp() {
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        $otp = sanitize_text_field($_POST['otp'] ?? '');
+        if (!$user_id || empty($otp)) {
+            wp_send_json_error('Invalid OTP');
+            return;
+        }
+
+        $saved_otp = get_user_meta($user_id, 'hyreme_email_otp', true);
+        $expires = intval(get_user_meta($user_id, 'hyreme_email_otp_expires', true));
+        $pending_email = get_user_meta($user_id, 'hyreme_pending_email', true);
+        if (!$saved_otp || !$pending_email || $expires < time() || $otp !== $saved_otp) {
+            wp_send_json_error('Invalid or expired OTP');
+            return;
+        }
+
+        wp_update_user(array('ID' => $user_id, 'user_email' => $pending_email));
+        update_user_meta($user_id, 'hyreme_email_verified', '1');
+        delete_user_meta($user_id, 'hyreme_email_otp');
+        delete_user_meta($user_id, 'hyreme_email_otp_expires');
+        delete_user_meta($user_id, 'hyreme_pending_email');
+
+        wp_send_json_success('Email verified');
+    } catch (Exception $e) {
+        wp_send_json_error('Error verifying OTP');
+    }
+}
+
+add_action('wp_ajax_hyreme_verify_mobile', 'hyreme_ajax_verify_mobile');
+function hyreme_ajax_verify_mobile() {
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'hyreme_nonce')) {
+            wp_send_json_error('Security check failed');
+            return;
+        }
+
+        $user_id = get_current_user_id();
+        $mobile = sanitize_text_field($_POST['mobile'] ?? '');
+        $otp = sanitize_text_field($_POST['otp'] ?? '');
+        if (!$user_id || empty($mobile) || empty($otp)) {
+            wp_send_json_error('Invalid request');
+            return;
+        }
+
+        update_user_meta($user_id, 'hyreme_mobile', $mobile);
+        update_user_meta($user_id, 'hyreme_mobile_verified', '1');
+        wp_send_json_success('Mobile verified');
+    } catch (Exception $e) {
+        wp_send_json_error('Error verifying mobile');
+    }
+}
+
+// ============================================================
 // AJAX RESUME UPLOAD HANDLER
 // ============================================================
 
