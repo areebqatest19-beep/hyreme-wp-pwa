@@ -21,6 +21,8 @@ function hyreme_auth_system() {
         exit;
     }
     
+    if ( in_array('administrator', (array) $current_user->roles) ) { wp_safe_redirect( admin_url() ); exit; }
+
     // Load dashboard, fallback to candidate if role is missing/subscriber
     if ( in_array('recruiter', (array) $current_user->roles) ) {
         include plugin_dir_path(__FILE__) . 'dashboards-recruiter.php';

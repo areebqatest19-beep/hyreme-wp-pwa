@@ -27,6 +27,8 @@ $candidates = new WP_User_Query($args);
 if (!empty($candidates->get_results())) {
     foreach ($candidates->get_results() as $candidate) {
         $intro_video = get_user_meta($candidate->ID, 'hyreme_intro_video', true);
+        $portfolio = get_user_meta($candidate->ID, 'hyreme_portfolio_video', true);
+        $skill = get_user_meta($candidate->ID, 'hyreme_skill_video', true);
         $resume = get_user_meta($candidate->ID, 'hyreme_resume', true);
         $hashtags = get_user_meta($candidate->ID, 'hyreme_intro_hashtags', true);
         
@@ -39,6 +41,8 @@ if (!empty($candidates->get_results())) {
                 'location' => get_user_meta($candidate->ID, 'hyreme_location', true) ?: 'Unknown',
                 'avatar' => '👤', 
                 'video' => esc_url($intro_video),
+                'portfolio' => esc_url($portfolio),
+                'skill' => esc_url($skill),
                 'resume' => esc_url($resume),
                 'hashtags' => $hashtags ?: '',
                 'skills' => get_user_meta($candidate->ID, 'hyreme_skills', true) ?: '',
@@ -147,14 +151,16 @@ if (!empty($candidates->get_results())) {
         .chat-input-field { flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: white; padding: 0.85rem 1rem; border-radius: 0.75rem; outline: none; }
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
-            .container { flex-direction: column; }
-            .sidebar { bottom: 0; left: 0; width: 100%; height: 75px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); border-radius: 1.5rem 1.5rem 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
-            .sidebar h2, .sidebar h3, .sidebar p, .sidebar .welcome-box { display: none; }
-            .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.65rem; text-align: center; border: none !important; background: transparent !important; }
+            .sidebar { bottom: 0; left: 0; width: 100%; height: 70px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 0.5rem; background: rgba(15, 23, 42, 0.98); border-top: 1px solid rgba(255,255,255,0.1); border-radius: 1.5rem 1.5rem 0 0; z-index: 100; }
+            .sidebar h2, .sidebar h3, .sidebar p, .sidebar > div:first-child, .sidebar > div:last-child { display: none !important; }
+            nav { display: flex; width: 100%; justify-content: space-around; align-items: center; }
+            .nav-item { flex-direction: column; gap: 4px; padding: 0.5rem; margin: 0; border: none !important; background: transparent !important; box-shadow: none !important; }
+            .nav-item span:first-child { font-size: 1.5rem; display: block; text-align: center; }
             .nav-item span:last-child { display: none; }
-            .nav-item span:first-child { font-size: 1.4rem; margin-bottom: 2px; }
-            .logout-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
-            .logout-btn span { display: none; }
+            .main-content { padding-bottom: 80px; }
+        }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
             .main-content { margin-left: 0; }
             .content-area { padding: 1.5rem; padding-bottom: 90px; }
             .feed-wrapper { flex-direction: column; height: auto; }
@@ -186,7 +192,6 @@ if (!empty($candidates->get_results())) {
                 <div class="nav-item active" data-section="discover" onclick="switchSection('discover')"><span>🎬</span><span>Discover Feed</span></div>
                 <div class="nav-item" data-section="saved" onclick="switchSection('saved')"><span>❤️</span><span>Saved Candidates</span></div>
                 <div class="nav-item" data-section="messages" onclick="switchSection('messages')"><span>💬</span><span>Messages</span></div>
-                <div class="nav-item" data-section="profile" onclick="switchSection('profile')"><span>⚙️</span><span>Settings</span></div>
             </nav>
             <div style="padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
                 <div class="welcome-box" style="background: rgba(34, 211, 238, 0.1); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(34, 211, 238, 0.2);">
@@ -274,11 +279,6 @@ if (!empty($candidates->get_results())) {
                     </div>
                 </div>
 
-                <div id="profile" class="section">
-                    <div style="background: rgba(30, 41, 59, 0.6); padding: 2rem; border-radius: 1rem;">
-                        <h2 style="color: #22d3ee;">⚙️ Settings coming soon...</h2>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -335,6 +335,11 @@ if (!empty($candidates->get_results())) {
                                     <h3>${candidate.name}</h3>
                                     <p>${candidate.role}</p>
                                     <p class="text-cyan-400 text-sm font-semibold mt-1">${candidate.hashtags || ''}</p>
+                                    <div class="flex gap-2 mt-3 z-50 pointer-events-auto">
+                                        <button onclick="switchVideo(this, '${candidate.video}')" class="text-xs bg-cyan-500 text-white px-3 py-1 rounded-full border border-cyan-400">Intro</button>
+                                        ${candidate.portfolio ? `<button onclick="switchVideo(this, '${candidate.portfolio}')" class="text-xs bg-slate-800/80 text-slate-300 px-3 py-1 rounded-full border border-slate-600 hover:bg-slate-700">Portfolio</button>` : ''}
+                                        ${candidate.skill ? `<button onclick="switchVideo(this, '${candidate.skill}')" class="text-xs bg-slate-800/80 text-slate-300 px-3 py-1 rounded-full border border-slate-600 hover:bg-slate-700">Skill</button>` : ''}
+                                    </div>
                                 </div>
                             </div>
                             <div class="video-actions">
@@ -451,6 +456,20 @@ if (!empty($candidates->get_results())) {
                 renderReels();
                 btn.textContent = ogText;
             }, 600);
+        }
+
+        function switchVideo(btn, url) {
+            if (!url) return;
+            const container = btn.closest('.video-container');
+            if (!container) return;
+            const video = container.querySelector('video');
+            if (!video) return;
+            video.src = url;
+            video.play().catch(() => {});
+            container.querySelectorAll('button.rounded-full').forEach(b => {
+                b.className = 'text-xs bg-slate-800/80 text-slate-300 px-3 py-1 rounded-full border border-slate-600 hover:bg-slate-700';
+            });
+            btn.className = 'text-xs bg-cyan-500 text-white px-3 py-1 rounded-full border border-cyan-400';
         }
 
         function switchSection(section) {

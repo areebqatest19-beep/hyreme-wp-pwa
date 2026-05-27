@@ -134,14 +134,16 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .chat-input-field { flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: white; padding: 0.85rem 1rem; border-radius: 0.75rem; outline: none; }
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
-            .container { flex-direction: column; }
-            .sidebar { bottom: 0; left: 0; width: 100%; height: 75px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); border-radius: 1.5rem 1.5rem 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
-            .sidebar h2, .sidebar h3, .sidebar p, .sidebar .welcome-box { display: none; }
-            .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.5rem; margin: 0; font-size: 0.65rem; text-align: center; border: none !important; background: transparent !important; }
+            .sidebar { bottom: 0; left: 0; width: 100%; height: 70px; display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 0 0.5rem; background: rgba(15, 23, 42, 0.98); border-top: 1px solid rgba(255,255,255,0.1); border-radius: 1.5rem 1.5rem 0 0; z-index: 100; }
+            .sidebar h2, .sidebar h3, .sidebar p, .sidebar > div:first-child, .sidebar > div:last-child { display: none !important; }
+            nav { display: flex; width: 100%; justify-content: space-around; align-items: center; }
+            .nav-item { flex-direction: column; gap: 4px; padding: 0.5rem; margin: 0; border: none !important; background: transparent !important; box-shadow: none !important; }
+            .nav-item span:first-child { font-size: 1.5rem; display: block; text-align: center; }
             .nav-item span:last-child { display: none; }
-            .nav-item span:first-child { font-size: 1.4rem; margin-bottom: 2px; }
-            .logout-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; }
-            .logout-btn span { display: none; }
+            .main-content { padding-bottom: 80px; }
+        }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
             .main-content { margin-left: 0; padding: 1.5rem; padding-bottom: 90px; }
             .header h1 { font-size: 1.75rem; }
             .messages-wrapper { flex-direction: column; height: auto; }
@@ -348,20 +350,16 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             </div>
 
             <div id="messages" class="section">
-                <div class="messages-wrapper" id="candidateMessagesWrapper">
-                    <div class="chat-list">
-                        <div class="chat-search"><input type="text" placeholder="Search..."></div>
-                        <div class="chat-items" id="candidateChatItems"></div>
+                <div class="flex h-[70vh] bg-slate-900 rounded-xl overflow-hidden border border-white/10 flex-col md:flex-row">
+                    <div class="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto" id="candidateChatList">
+                        <div class="p-4 text-slate-400 text-sm text-center">Loading recruiters...</div>
                     </div>
-                    <div class="chat-window" id="candidateChatWindow">
-                        <div class="chat-header">
-                            <button class="chat-back-btn" type="button" onclick="showCandidateChatList()">← Back</button>
-                            <h3 id="candidateChatHeaderTitle">Select a recruiter</h3>
-                        </div>
-                        <div class="chat-messages" id="candidateChatMessages"></div>
-                        <div class="chat-input-area" id="candidateChatInputArea" style="display: none;">
-                            <input type="text" class="chat-input-field" placeholder="Type a message..." id="candidateChatInput">
-                            <button class="chat-send-btn" onclick="sendCandidateMessage()">Send</button>
+                    <div class="flex-1 flex flex-col relative bg-slate-950">
+                        <div class="p-4 border-b border-white/10 bg-slate-900"><h3 id="candidateChatHeaderTitle" class="text-cyan-400 font-bold">Select a conversation</h3></div>
+                        <div id="candidateChatMessages" class="flex-1 p-6 overflow-y-auto flex flex-col gap-4"></div>
+                        <div id="candidateChatInputArea" class="p-4 border-t border-white/10 flex gap-2 hidden">
+                            <input type="text" id="candidateChatInput" class="flex-1 bg-slate-800 p-3 rounded-lg text-white outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Type a message...">
+                            <button onclick="sendCandidateMessage()" class="bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-2 rounded-lg text-white font-bold transition hover:scale-105">Send</button>
                         </div>
                     </div>
                 </div>
@@ -616,7 +614,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         let messageRefreshInterval = null;
 
         function loadRecruiters() {
-            const recruitersList = document.getElementById('candidateChatItems');
+            const recruitersList = document.getElementById('candidateChatList');
             if (!recruitersList) return;
             recruitersList.innerHTML = '<div style="padding:1rem; color:#94a3b8; text-align:center;">Loading conversations...</div>';
             
@@ -639,9 +637,9 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                     recruitersList.innerHTML = '';
                     recruiters.forEach(recruiter => {
                         const card = document.createElement('div');
-                        card.className = 'chat-item';
+                        card.className = 'p-4 border-b border-white/10 hover:bg-slate-900/70 cursor-pointer';
                         card.dataset.recruiterId = recruiter.id;
-                        card.innerHTML = `<div class="chat-item-header"><div class="chat-item-name">${recruiter.name}</div></div><div class="chat-item-preview">${recruiter.preview || 'Click to open'}</div>`;
+                        card.innerHTML = `<div class="text-slate-100 font-semibold">${recruiter.name}</div><div class="text-slate-400 text-xs mt-1">${recruiter.preview || 'Click to open'}</div>`;
                         card.onclick = () => openCandidateChat(recruiter.id, recruiter.name);
                         recruitersList.appendChild(card);
                     });
@@ -651,12 +649,11 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
 
         function openCandidateChat(recruiterId, recruiterName) {
             currentChatUserId = recruiterId;
-            document.querySelectorAll('#candidateChatItems .chat-item').forEach(item => item.classList.remove('active'));
-            const activeItem = document.querySelector(`#candidateChatItems .chat-item[data-recruiter-id="${recruiterId}"]`);
-            if (activeItem) activeItem.classList.add('active');
+            document.querySelectorAll('#candidateChatList [data-recruiter-id]').forEach(item => item.classList.remove('bg-slate-900/70'));
+            const activeItem = document.querySelector(`#candidateChatList [data-recruiter-id="${recruiterId}"]`);
+            if (activeItem) activeItem.classList.add('bg-slate-900/70');
             document.getElementById('candidateChatHeaderTitle').textContent = `💬 ${recruiterName}`;
-            document.getElementById('candidateChatInputArea').style.display = 'flex';
-            document.getElementById('candidateMessagesWrapper')?.classList.add('chat-active');
+            document.getElementById('candidateChatInputArea').classList.remove('hidden');
             loadCandidateMessages();
             
             // Refresh messages every 2 seconds
@@ -703,7 +700,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                 }
                 const isOwn = msg.from == currentUserId;
                 const bubble = document.createElement('div');
-                bubble.style.cssText = `display:flex; justify-content:${isOwn ? 'flex-end' : 'flex-start'}; margin-bottom:0.75rem;`;
+                bubble.style.cssText = `display:flex; justify-content:${isOwn ? 'flex-end' : 'flex-start'};`;
                 bubble.innerHTML = `
                     <div style="max-width:70%; background:${isOwn ? 'rgba(6,182,212,0.3)' : 'rgba(30,41,59,0.8)'}; border:1px solid ${isOwn ? 'rgba(6,182,212,0.5)' : 'rgba(255,255,255,0.1)'}; padding:0.75rem 1rem; border-radius:0.75rem; color:white; word-wrap:break-word;">
                         <div>${msg.text}</div>
@@ -716,9 +713,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        function showCandidateChatList() {
-            document.getElementById('candidateMessagesWrapper')?.classList.remove('chat-active');
-        }
+        function showCandidateChatList() {}
 
         function sendCandidateMessage() {
             if (!currentChatUserId) return;
