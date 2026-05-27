@@ -159,7 +159,7 @@ function hyreme_auth_system() {
             <style>
                 body { margin: 0; padding: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); background-size: 200% 200%; animation: gradient-shift 15s ease infinite; font-family: sans-serif; }
                 @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-                .glassmorphism { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); width: 90%; max-width: 420px; padding: 2.5rem; border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+                .glassmorphism { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); width: 100%; max-width: 420px; padding: clamp(1.5rem, 4vw, 2.5rem); border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
                 .input-field { background: rgba(30, 41, 59, 0.8); border: 1.5px solid rgba(255, 255, 255, 0.15); color: white; width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; outline: none; transition: border 0.3s; box-sizing: border-box; }
                 .input-field:focus { border-color: #06b6d4; }
                 .btn-toggle { padding: 0.6rem; border-radius: 9999px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; flex: 1; transition: 0.3s; }
@@ -465,7 +465,7 @@ function hyreme_ajax_send_message() {
         $conversation[] = array(
             'from' => $sender_id,
             'text' => $message_text,
-            'time' => date('H:i')
+            'time' => current_time('h:i A')
         );
         
         update_user_meta($sender_id, $conv_id, $conversation);
@@ -661,6 +661,31 @@ function hyreme_ajax_schedule_interview() {
         );
         
         update_user_meta($candidate_id, 'hyreme_interviews', $interviews);
+        
+        $scheduled = get_user_meta($candidate_id, 'hyreme_interview_scheduled', true);
+        if (!is_array($scheduled)) {
+            $scheduled = array();
+        }
+        $scheduled[] = array(
+            'recruiter_id' => $recruiter_id,
+            'date' => $date,
+            'time' => $time,
+            'created' => date('Y-m-d H:i:s')
+        );
+        update_user_meta($candidate_id, 'hyreme_interview_scheduled', $scheduled);
+        
+        $conv_id = 'conv_' . min($recruiter_id, $candidate_id) . '_' . max($recruiter_id, $candidate_id);
+        $conversation = get_user_meta($recruiter_id, $conv_id, true);
+        if (!is_array($conversation)) {
+            $conversation = array();
+        }
+        $conversation[] = array(
+            'from' => 'system',
+            'text' => "📅 Interview Scheduled: $date at $time",
+            'time' => current_time('h:i A')
+        );
+        update_user_meta($recruiter_id, $conv_id, $conversation);
+        update_user_meta($candidate_id, $conv_id, $conversation);
         
         wp_send_json_success(array('date' => $date, 'time' => $time));
     } catch (Exception $e) {

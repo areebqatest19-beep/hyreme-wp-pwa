@@ -102,7 +102,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .alert { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1.5rem; font-size: 0.95rem; }
         .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #86efac; }
         .alert-error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; }
-        .analytics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .analytics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .stat-card { background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.3); border-radius: 0.75rem; padding: 1.5rem; text-align: center; }
         .stat-card .number { font-size: 2rem; font-weight: bold; color: #22d3ee; margin-bottom: 0.5rem; }
         .stat-card .label { color: #94a3b8; font-size: 0.9rem; }
@@ -127,16 +127,24 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .chat-window { flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; display: flex; flex-direction: column; overflow: hidden; }
         .chat-header { padding: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; }
         .chat-header h3 { color: #22d3ee; font-size: 1.2rem; margin: 0; }
+        .chat-back-btn { display: none; align-items: center; gap: 0.35rem; background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.3); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
         .chat-input-area { padding: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; gap: 0.75rem; }
         .chat-input-field { flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: white; padding: 0.85rem 1rem; border-radius: 0.75rem; outline: none; }
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-direction: row; overflow-x: auto; padding: 1rem; gap: 0.5rem; }
-            .main-content { margin-left: 0; padding: 1.5rem; }
+            .sidebar { width: 100%; height: auto; position: fixed; bottom: 0; top: auto; left: 0; border-right: none; border-top: 1px solid rgba(255, 255, 255, 0.1); flex-direction: row; overflow-x: auto; padding: 0.75rem; gap: 0.5rem; z-index: 60; background: rgba(15, 23, 42, 0.95); }
+            .main-content { margin-left: 0; padding: 1.5rem; padding-bottom: 6rem; }
             .nav-item { white-space: nowrap; flex: 0 0 auto; }
             .header h1 { font-size: 1.75rem; }
+            .messages-wrapper { flex-direction: column; height: auto; }
+            .chat-list { width: 100%; max-height: 40vh; }
+            .chat-window { width: 100%; }
+            .messages-wrapper.chat-active .chat-list { display: none; }
+            .messages-wrapper.chat-active .chat-window { flex: 1; }
+            .chat-back-btn { display: inline-flex; }
+            .analytics { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -330,13 +338,14 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             </div>
 
             <div id="messages" class="section">
-                <div class="messages-wrapper">
+                <div class="messages-wrapper" id="candidateMessagesWrapper">
                     <div class="chat-list">
                         <div class="chat-search"><input type="text" placeholder="Search..."></div>
                         <div class="chat-items" id="candidateChatItems"></div>
                     </div>
                     <div class="chat-window" id="candidateChatWindow">
                         <div class="chat-header">
+                            <button class="chat-back-btn" type="button" onclick="showCandidateChatList()">← Back</button>
                             <h3 id="candidateChatHeaderTitle">Select a recruiter</h3>
                         </div>
                         <div class="chat-messages" id="candidateChatMessages"></div>
@@ -634,6 +643,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             if (activeItem) activeItem.classList.add('active');
             document.getElementById('candidateChatHeaderTitle').textContent = `💬 ${recruiterName}`;
             document.getElementById('candidateChatInputArea').style.display = 'flex';
+            document.getElementById('candidateMessagesWrapper')?.classList.add('chat-active');
             loadCandidateMessages();
             
             // Refresh messages every 2 seconds
@@ -672,19 +682,29 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             }
             
             messages.forEach(msg => {
+                if (msg.from === 'system') {
+                    const systemNote = document.createElement('div');
+                    systemNote.innerHTML = '<div class="text-center text-cyan-400 bg-cyan-900/30 p-2 rounded my-4 text-sm font-semibold mx-auto w-fit">' + msg.text + '</div>';
+                    chatMessages.appendChild(systemNote);
+                    return;
+                }
                 const isOwn = msg.from == currentUserId;
                 const bubble = document.createElement('div');
                 bubble.style.cssText = `display:flex; justify-content:${isOwn ? 'flex-end' : 'flex-start'}; margin-bottom:0.75rem;`;
                 bubble.innerHTML = `
                     <div style="max-width:70%; background:${isOwn ? 'rgba(6,182,212,0.3)' : 'rgba(30,41,59,0.8)'}; border:1px solid ${isOwn ? 'rgba(6,182,212,0.5)' : 'rgba(255,255,255,0.1)'}; padding:0.75rem 1rem; border-radius:0.75rem; color:white; word-wrap:break-word;">
                         <div>${msg.text}</div>
-                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.25rem;">${new Date(msg.time).toLocaleTimeString()}</div>
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.25rem;">${msg.time || ''}</div>
                     </div>
                 `;
                 chatMessages.appendChild(bubble);
             });
             
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showCandidateChatList() {
+            document.getElementById('candidateMessagesWrapper')?.classList.remove('chat-active');
         }
 
         function sendCandidateMessage() {

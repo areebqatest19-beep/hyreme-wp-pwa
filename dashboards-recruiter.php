@@ -135,13 +135,32 @@ if (!empty($candidates->get_results())) {
         .chat-item-time { font-size: 0.75rem; color: #64748b; }
         .chat-item-preview { font-size: 0.85rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-window { flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; display: flex; flex-direction: column; overflow: hidden; }
-        .chat-header { padding: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header { padding: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
         .chat-header h3 { color: #22d3ee; font-size: 1.2rem; margin: 0; }
+        .chat-back-btn { display: none; align-items: center; gap: 0.35rem; background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.3); padding: 0.4rem 0.7rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
         .chat-header-actions button { background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.3); padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
         .chat-input-area { padding: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; gap: 0.75rem; }
         .chat-input-field { flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: white; padding: 0.85rem 1rem; border-radius: 0.75rem; outline: none; }
         .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: fixed; bottom: 0; top: auto; left: 0; border-right: none; border-top: 1px solid rgba(255, 255, 255, 0.1); flex-direction: row; overflow-x: auto; padding: 0.75rem; gap: 0.5rem; z-index: 60; background: rgba(15, 23, 42, 0.95); }
+            .main-content { margin-left: 0; }
+            .content-area { padding: 1.5rem; padding-bottom: 6rem; }
+            .nav-item { white-space: nowrap; flex: 0 0 auto; }
+            .feed-wrapper { flex-direction: column; height: auto; }
+            .filter-panel { width: 100%; position: static; }
+            .reels-feed { height: auto; padding-right: 0; }
+            .video-container { max-width: 100%; }
+            .messages-wrapper { flex-direction: column; height: auto; }
+            .chat-list { width: 100%; max-height: 40vh; }
+            .chat-window { width: 100%; }
+            .messages-wrapper.chat-active .chat-list { display: none; }
+            .messages-wrapper.chat-active .chat-window { flex: 1; }
+            .chat-back-btn { display: inline-flex; }
+            #scheduleModal > div { width: 95% !important; max-width: 420px !important; padding: 1.5rem !important; }
+        }
     </style>
 </head>
 <body>
@@ -213,13 +232,14 @@ if (!empty($candidates->get_results())) {
                 </div>
 
                 <div id="messages" class="section">
-                    <div class="messages-wrapper">
+                    <div class="messages-wrapper" id="recruiterMessagesWrapper">
                         <div class="chat-list">
                             <div class="chat-search"><input type="text" placeholder="Search..."></div>
                             <div class="chat-items" id="chatItems"></div>
                         </div>
                         <div class="chat-window" id="chatWindow">
                             <div class="chat-header">
+                                <button class="chat-back-btn" type="button" onclick="showRecruiterChatList()">← Back</button>
                                 <h3 id="chatHeaderTitle">Select a conversation</h3>
                                 <div class="chat-header-actions">
                                     <button onclick="openScheduleModal()" style="background: rgba(34, 211, 238, 0.15); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.3); padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.85rem;">📅 Schedule</button>
@@ -384,6 +404,7 @@ if (!empty($candidates->get_results())) {
             
             document.getElementById('chatHeaderTitle').textContent = `💬 Chat with ${name}`;
             document.getElementById('chatInputArea').style.display = 'flex';
+            document.getElementById('recruiterMessagesWrapper')?.classList.add('chat-active');
             document.getElementById('chatMessages').innerHTML = `<div style="text-align:center; color:#94a3b8; margin-top:2rem;">Start the conversation with ${name}</div>`;
             document.getElementById('chatInput').focus();
         }
@@ -464,6 +485,7 @@ if (!empty($candidates->get_results())) {
             
             document.getElementById('chatHeaderTitle').textContent = `💬 ${userName}`;
             document.getElementById('chatInputArea').style.display = 'flex';
+            document.getElementById('recruiterMessagesWrapper')?.classList.add('chat-active');
             
             loadMessages();
             
@@ -500,13 +522,19 @@ if (!empty($candidates->get_results())) {
             }
             
             messages.forEach(msg => {
+                if (msg.from === 'system') {
+                    const systemNote = document.createElement('div');
+                    systemNote.innerHTML = '<div class="text-center text-cyan-400 bg-cyan-900/30 p-2 rounded my-4 text-sm font-semibold mx-auto w-fit">' + msg.text + '</div>';
+                    chatMessages.appendChild(systemNote);
+                    return;
+                }
                 const isOwn = msg.from == currentUserId;
                 const bubble = document.createElement('div');
                 bubble.style.cssText = `display:flex; justify-content:${isOwn ? 'flex-end' : 'flex-start'}; margin-bottom:0.75rem;`;
                 bubble.innerHTML = `
                     <div style="max-width:70%; background:${isOwn ? 'rgba(6,182,212,0.3)' : 'rgba(30,41,59,0.8)'}; border:1px solid ${isOwn ? 'rgba(6,182,212,0.5)' : 'rgba(255,255,255,0.1)'}; padding:0.75rem 1rem; border-radius:0.75rem; color:white; word-wrap:break-word;">
                         <div>${msg.text}</div>
-                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.25rem;">${new Date(msg.time).toLocaleTimeString()}</div>
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.25rem;">${msg.time || ''}</div>
                     </div>
                 `;
                 chatMessages.appendChild(bubble);
@@ -623,6 +651,10 @@ if (!empty($candidates->get_results())) {
                 setTimeout(loadConversations, 100);
             });
         });
+
+        function showRecruiterChatList() {
+            document.getElementById('recruiterMessagesWrapper')?.classList.remove('chat-active');
+        }
 
         // Heartbeat polling for messages every 3 seconds
         function startHeartbeat() {
