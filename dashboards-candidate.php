@@ -112,6 +112,25 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         .upload-zone .note { font-size: 0.85rem; color: #64748b; }
         .logout-btn { text-align: center; padding: 0.75rem; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; border-radius: 0.5rem; cursor: pointer; transition: 0.3s; font-weight: 500; text-decoration: none; display: block; }
         .logout-btn:hover { background: rgba(239, 68, 68, 0.3); }
+        .messages-wrapper { display: flex; gap: 2rem; height: calc(100vh - 120px); }
+        .chat-list { width: 300px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; overflow-y: auto; display: flex; flex-direction: column; }
+        .chat-search { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .chat-search input { width: 100%; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: white; padding: 0.65rem 0.85rem; border-radius: 0.5rem; outline: none; }
+        .chat-items { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; transition: all 0.3s; }
+        .chat-item:hover { background: rgba(30, 41, 59, 0.6); }
+        .chat-item.active { background: rgba(34, 211, 238, 0.1); border-left: 3px solid #22d3ee; padding-left: calc(1rem - 3px); }
+        .chat-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .chat-item-name { font-weight: 600; color: #cbd5e1; }
+        .chat-item-time { font-size: 0.75rem; color: #64748b; }
+        .chat-item-preview { font-size: 0.85rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-window { flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.25rem; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { padding: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { color: #22d3ee; font-size: 1.2rem; margin: 0; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .chat-input-area { padding: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; gap: 0.75rem; }
+        .chat-input-field { flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: white; padding: 0.85rem 1rem; border-radius: 0.75rem; outline: none; }
+        .chat-send-btn { background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; border: none; padding: 0.85rem 1.5rem; border-radius: 0.75rem; cursor: pointer; font-weight: 600; }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
             .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-direction: row; overflow-x: auto; padding: 1rem; gap: 0.5rem; }
@@ -311,9 +330,21 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             </div>
 
             <div id="messages" class="section">
-                <div class="card">
-                    <h2>💬 Messages from Recruiters</h2>
-                    <div id="recruiters-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;"></div>
+                <div class="messages-wrapper">
+                    <div class="chat-list">
+                        <div class="chat-search"><input type="text" placeholder="Search..."></div>
+                        <div class="chat-items" id="candidateChatItems"></div>
+                    </div>
+                    <div class="chat-window" id="candidateChatWindow">
+                        <div class="chat-header">
+                            <h3 id="candidateChatHeaderTitle">Select a recruiter</h3>
+                        </div>
+                        <div class="chat-messages" id="candidateChatMessages"></div>
+                        <div class="chat-input-area" id="candidateChatInputArea" style="display: none;">
+                            <input type="text" class="chat-input-field" placeholder="Type a message..." id="candidateChatInput">
+                            <button class="chat-send-btn" onclick="sendCandidateMessage()">Send</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -353,7 +384,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             const fileInput = zone.querySelector('input[type="file"]');
             const videoType = zone.getAttribute('data-video-type');
             
-            zone.addEventListener('click', () => fileInput.click());
+            zone.addEventListener('click', (e) => { e.stopPropagation(); if (e.target !== fileInput) fileInput.click(); });
             zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.borderColor = '#22d3ee'; });
             zone.addEventListener('dragleave', () => { zone.style.borderColor = 'rgba(34, 211, 238, 0.5)'; });
             zone.addEventListener('drop', (e) => {
@@ -456,7 +487,7 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         if (resumeZone) {
             const fileInput = document.getElementById('resumeFileInput');
             
-            resumeZone.addEventListener('click', () => fileInput.click());
+            resumeZone.addEventListener('click', (e) => { e.stopPropagation(); if (e.target !== fileInput) fileInput.click(); });
             resumeZone.addEventListener('dragover', (e) => { 
                 e.preventDefault(); 
                 resumeZone.style.borderColor = '#22d3ee'; 
@@ -563,8 +594,9 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
         let messageRefreshInterval = null;
 
         function loadRecruiters() {
-            const recruitersList = document.getElementById('recruiters-list');
-            recruitersList.innerHTML = '<div style="grid-column: 1/-1; color:#94a3b8; text-align:center;">Loading conversations...</div>';
+            const recruitersList = document.getElementById('candidateChatItems');
+            if (!recruitersList) return;
+            recruitersList.innerHTML = '<div style="padding:1rem; color:#94a3b8; text-align:center;">Loading conversations...</div>';
             
             fetch(ajaxurl, {
                 method: 'POST',
@@ -579,32 +611,37 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
                 if (data.success) {
                     const recruiters = data.data || [];
                     if (recruiters.length === 0) {
-                        recruitersList.innerHTML = '<div style="grid-column: 1/-1; color:#94a3b8; text-align:center; padding: 2rem;">No messages yet. Start conversations with recruiters who message you!</div>';
+                        recruitersList.innerHTML = '<div style="padding: 2rem; color:#94a3b8; text-align:center;">No messages yet. Start conversations with recruiters who message you!</div>';
                         return;
                     }
                     recruitersList.innerHTML = '';
                     recruiters.forEach(recruiter => {
                         const card = document.createElement('div');
-                        card.style.cssText = 'background: rgba(30,41,59,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding: 1rem; cursor: pointer; transition: 0.3s;';
-                        card.innerHTML = `<div style="color: #22d3ee; font-weight: 600; margin-bottom: 0.5rem;">${recruiter.name}</div><div style="color: #94a3b8; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${recruiter.preview}</div>`;
-                        card.onclick = () => openChat(recruiter.id, recruiter.name);
+                        card.className = 'chat-item';
+                        card.dataset.recruiterId = recruiter.id;
+                        card.innerHTML = `<div class="chat-item-header"><div class="chat-item-name">${recruiter.name}</div></div><div class="chat-item-preview">${recruiter.preview || 'Click to open'}</div>`;
+                        card.onclick = () => openCandidateChat(recruiter.id, recruiter.name);
                         recruitersList.appendChild(card);
                     });
                 }
             });
         }
 
-        function openChat(recruiterId, recruiterName) {
+        function openCandidateChat(recruiterId, recruiterName) {
             currentChatUserId = recruiterId;
-            document.getElementById('messages').scrollIntoView({ behavior: 'smooth' });
-            loadMessages();
+            document.querySelectorAll('#candidateChatItems .chat-item').forEach(item => item.classList.remove('active'));
+            const activeItem = document.querySelector(`#candidateChatItems .chat-item[data-recruiter-id="${recruiterId}"]`);
+            if (activeItem) activeItem.classList.add('active');
+            document.getElementById('candidateChatHeaderTitle').textContent = `💬 ${recruiterName}`;
+            document.getElementById('candidateChatInputArea').style.display = 'flex';
+            loadCandidateMessages();
             
             // Refresh messages every 2 seconds
             if (messageRefreshInterval) clearInterval(messageRefreshInterval);
-            messageRefreshInterval = setInterval(loadMessages, 2000);
+            messageRefreshInterval = setInterval(loadCandidateMessages, 2000);
         }
 
-        function loadMessages() {
+        function loadCandidateMessages() {
             if (!currentChatUserId) return;
             
             fetch(ajaxurl, {
@@ -619,17 +656,80 @@ $notifications = get_user_meta($user_id, 'hyreme_notifications', true) ?: array(
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    displayMessages(data.data.messages, data.data.current_user_id);
+                    displayCandidateMessages(data.data.messages, data.data.current_user_id);
                 }
-            });
+            })
+            .catch(err => console.error('Error loading messages:', err));
         }
 
-        function displayMessages(messages, currentUserId) {
-            // Messages display would go here - simple for now
+        function displayCandidateMessages(messages, currentUserId) {
+            const chatMessages = document.getElementById('candidateChatMessages');
+            chatMessages.innerHTML = '';
+            
+            if (!messages || messages.length === 0) {
+                chatMessages.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top:2rem;">Start the conversation</div>';
+                return;
+            }
+            
+            messages.forEach(msg => {
+                const isOwn = msg.from == currentUserId;
+                const bubble = document.createElement('div');
+                bubble.style.cssText = `display:flex; justify-content:${isOwn ? 'flex-end' : 'flex-start'}; margin-bottom:0.75rem;`;
+                bubble.innerHTML = `
+                    <div style="max-width:70%; background:${isOwn ? 'rgba(6,182,212,0.3)' : 'rgba(30,41,59,0.8)'}; border:1px solid ${isOwn ? 'rgba(6,182,212,0.5)' : 'rgba(255,255,255,0.1)'}; padding:0.75rem 1rem; border-radius:0.75rem; color:white; word-wrap:break-word;">
+                        <div>${msg.text}</div>
+                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:0.25rem;">${new Date(msg.time).toLocaleTimeString()}</div>
+                    </div>
+                `;
+                chatMessages.appendChild(bubble);
+            });
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendCandidateMessage() {
+            if (!currentChatUserId) return;
+            
+            const input = document.getElementById('candidateChatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            fetch(ajaxurl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ 
+                    action: 'hyreme_send_message', 
+                    nonce: hyreme_nonce, 
+                    recipient_id: currentChatUserId,
+                    message: message
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    loadCandidateMessages();
+                } else {
+                    alert('Failed to send message: ' + data.data);
+                }
+            })
+            .catch(err => alert('Error sending message: ' + err));
         }
 
         // Load recruiters on page load
         document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('candidateChatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendCandidateMessage();
+                    }
+                });
+            }
+        });
+
+        window.addEventListener('load', () => {
             loadRecruiters();
         });
     </script>

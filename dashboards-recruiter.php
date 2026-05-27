@@ -27,6 +27,7 @@ $candidates = new WP_User_Query($args);
 if (!empty($candidates->get_results())) {
     foreach ($candidates->get_results() as $candidate) {
         $intro_video = get_user_meta($candidate->ID, 'hyreme_intro_video', true);
+        $resume = get_user_meta($candidate->ID, 'hyreme_resume', true);
         
         // Only include candidates who have uploaded at least one video
         if (!empty($intro_video)) {
@@ -37,6 +38,7 @@ if (!empty($candidates->get_results())) {
                 'location' => get_user_meta($candidate->ID, 'hyreme_location', true) ?: 'Unknown',
                 'avatar' => '👤', 
                 'video' => esc_url($intro_video),
+                'resume' => esc_url($resume),
                 'skills' => get_user_meta($candidate->ID, 'hyreme_skills', true) ?: '',
                 'saved' => false
             );
@@ -115,9 +117,9 @@ if (!empty($candidates->get_results())) {
         .candidate-avatar { width: 50px; height: 50px; border-radius: 50%; background: rgba(34, 211, 238, 0.2); border: 2px solid #22d3ee; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
         .candidate-header-info h3 { color: white; font-weight: 600; font-size: 1.1rem; margin: 0; }
         .candidate-header-info p { color: rgba(255, 255, 255, 0.8); font-size: 0.85rem; margin: 0; }
-        .video-actions { display: flex; flex-direction: column; gap: 0.75rem; pointer-events: auto; align-self: flex-end; }
-        .action-btn { width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: all 0.3s; background: rgba(255, 255, 255, 0.15); color: white; backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); }
-        .action-btn:hover { background: rgba(34, 211, 238, 0.3); transform: scale(1.1); border-color: #22d3ee; }
+        .video-actions { display: flex; flex-direction: column; gap: 0.75rem; pointer-events: auto; align-self: flex-end; position: absolute; bottom: 6rem; right: 1rem; z-index: 10; }
+        .action-btn { width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s; background: rgba(255, 255, 255, 0.15); color: white; backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .action-btn:hover { transform: scale(1.15); background: rgba(34, 211, 238, 0.4); border-color: #22d3ee; }
 
         /* MESSAGES */
         .messages-wrapper { display: flex; gap: 2rem; height: calc(100vh - 120px); }
@@ -297,7 +299,7 @@ if (!empty($candidates->get_results())) {
                             <div class="video-actions">
                                 <button class="action-btn save-btn ${isSavedClass}" data-id="${candidate.id}" onclick="toggleSave(${candidate.id})" title="Save">❤️</button>
                                 <button class="action-btn" onclick="jumpToMessages(${candidate.id}, '${candidate.name.replace(/'/g, "\\'")}')" title="Message">💬</button>
-                                <button class="action-btn" title="View Resume">📄</button>
+                                ${candidate.resume ? `<button class="action-btn" onclick="window.open('${candidate.resume}', '_blank')" title="View Resume">📄</button>` : ''}
                             </div>
                         </div>
                     </div>
@@ -339,7 +341,36 @@ if (!empty($candidates->get_results())) {
                             btn.title = 'Save';
                         }
                     }
+                    renderSavedCandidatesList();
                 }
+            });
+        }
+
+        function renderSavedCandidatesList() {
+            const savedList = document.getElementById('savedList');
+            if (!savedList) return;
+            
+            const savedCandidates = window.allCandidates.filter(c => c.saved === true);
+            if (savedCandidates.length === 0) {
+                savedList.innerHTML = '<div style="color:#94a3b8; text-align:center; padding: 2rem;">No saved candidates</div>';
+                return;
+            }
+            
+            savedList.innerHTML = '';
+            savedCandidates.forEach(candidate => {
+                const card = document.createElement('div');
+                card.style.cssText = 'background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem;';
+                card.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:1rem;">
+                        <div class="candidate-avatar">${candidate.avatar}</div>
+                        <div>
+                            <div style="color:#cbd5e1; font-weight:600;">${candidate.name}</div>
+                            <div style="color:#94a3b8; font-size:0.9rem;">${candidate.role}</div>
+                        </div>
+                    </div>
+                    <button class="action-btn" onclick="toggleSave(${candidate.id})" title="Unsave">💔</button>
+                `;
+                savedList.appendChild(card);
             });
         }
 
@@ -605,6 +636,7 @@ if (!empty($candidates->get_results())) {
 
         window.addEventListener('load', () => { 
             renderReels(); 
+            renderSavedCandidatesList();
             loadConversations();
             startHeartbeat();
         });
